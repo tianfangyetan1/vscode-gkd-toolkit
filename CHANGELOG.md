@@ -1,9 +1,8 @@
 # Change Log
 
-All notable changes to the "gkd-file-outline" extension will be documented in this file.
+## [0.1.0] - 2026-03-14
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+### Added
 
-## [Unreleased]
-
-- Initial release
+- Open all snapshots
+- Open all snapshots and query selector
