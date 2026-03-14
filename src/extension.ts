@@ -223,8 +223,30 @@ function readQuotedString(text: string, startIndex: number): { value: string; ne
 function readArrayLiteral(text: string, startIndex: number): { value: string; nextIndex: number } | null {
 	let cursor = startIndex + 1;
 	let quote: '\'' | '"' | null = null;
+	let inLineComment = false;
+	let inBlockComment = false;
 	while (cursor < text.length) {
 		const char = text[cursor];
+		const next = text[cursor + 1];
+
+		if (inLineComment) {
+			if (char === '\n') {
+				inLineComment = false;
+			}
+			cursor += 1;
+			continue;
+		}
+
+		if (inBlockComment) {
+			if (char === '*' && next === '/') {
+				inBlockComment = false;
+				cursor += 2;
+				continue;
+			}
+			cursor += 1;
+			continue;
+		}
+
 		if (quote) {
 			if (char === '\\') {
 				cursor += 2;
@@ -234,6 +256,18 @@ function readArrayLiteral(text: string, startIndex: number): { value: string; ne
 				quote = null;
 			}
 			cursor += 1;
+			continue;
+		}
+
+		if (char === '/' && next === '/') {
+			inLineComment = true;
+			cursor += 2;
+			continue;
+		}
+
+		if (char === '/' && next === '*') {
+			inBlockComment = true;
+			cursor += 2;
 			continue;
 		}
 
@@ -253,19 +287,64 @@ function readArrayLiteral(text: string, startIndex: number): { value: string; ne
 }
 
 /**
- * 从文本中提取全部字符串字面量内容。
+ * 从数组文本中提取全部字符串字面量内容。
  */
 function extractStringLiterals(input: string): string[] {
 	const values: string[] = [];
-	const matcher = /'([^'\\]*(?:\\.[^'\\]*)*)'|"([^"\\]*(?:\\.[^"\\]*)*)"/g;
-	let match = matcher.exec(input);
-	while (match) {
-		const value = (match[1] ?? match[2] ?? '').trim();
-		if (value.length > 0) {
-			values.push(value);
+	let cursor = 0;
+	let inLineComment = false;
+	let inBlockComment = false;
+
+	while (cursor < input.length) {
+		const char = input[cursor];
+		const next = input[cursor + 1];
+
+		if (inLineComment) {
+			if (char === '\n') {
+				inLineComment = false;
+			}
+			cursor += 1;
+			continue;
 		}
-		match = matcher.exec(input);
+
+		if (inBlockComment) {
+			if (char === '*' && next === '/') {
+				inBlockComment = false;
+				cursor += 2;
+				continue;
+			}
+			cursor += 1;
+			continue;
+		}
+
+		if (char === '/' && next === '/') {
+			inLineComment = true;
+			cursor += 2;
+			continue;
+		}
+
+		if (char === '/' && next === '*') {
+			inBlockComment = true;
+			cursor += 2;
+			continue;
+		}
+
+		if (char === '\'' || char === '"') {
+			const quoted = readQuotedString(input, cursor);
+			if (!quoted) {
+				break;
+			}
+			const value = quoted.value.trim();
+			if (value.length > 0) {
+				values.push(value);
+			}
+			cursor = quoted.nextIndex;
+			continue;
+		}
+
+		cursor += 1;
 	}
+
 	return values;
 }
 
