@@ -359,3 +359,14 @@ function isValidHttpUrl(url: string): boolean {
 		return false;
 	}
 }
+
+export const __test__ = {
+	hasTargetDefineImport,
+	findSnapshotUrlsEntries,
+	parseSnapshotUrlsValue,
+	skipWhitespace,
+	readQuotedString,
+	readArrayLiteral,
+	extractStringLiterals,
+	isValidHttpUrl,
+};
