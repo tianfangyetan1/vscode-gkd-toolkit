@@ -1,22 +1,21 @@
 # GKD Toolkit
 
-`GKD Toolkit` 是一个面向 GKD 规则项目的 VS Code 扩展。
+GKD 订阅项目的 VS Code 扩展。
 
 ## 功能
 
-- 在 `src/` 与 `src/apps/` 下的 `.ts` 文件中，当文件从 `@gkd-kit/define` 导入了 `defineGkdGlobalGroups` 或 `defineGkdApp` 时：
-  - 为 `snapshotUrls` 属性提供 `全部打开` CodeLens 按钮。
-  - 点击后会在默认浏览器中依次打开该属性中的所有合法 URL。
-- 支持两种 `snapshotUrls` 写法：
-  - `snapshotUrls: ['https://example.com/a', 'https://example.com/b']`
-  - `snapshotUrls: 'https://example.com/a'`
+- 打开所有快照
+
+  - 同时查询选择器
 
 ## 启用条件
 
-扩展仅在当前工作区同时安装以下依赖时启用功能：
+1. 当前工作区安装以下 npm 包
 
-- `@gkd-kit/api`
-- `@gkd-kit/define`
-- `@gkd-kit/tools`
+  - `@gkd-kit/api`
+  - `@gkd-kit/define`
+  - `@gkd-kit/tools`
 
-若缺少任一依赖，扩展不会注册上述功能。
+2. 当前编辑器打开了 `src` 或者 `src/apps` 文件夹下的 `.ts` 文件
+
+3. 当前编辑器文件导入了 `defineGkdApp` 或者 `defineGkdGlobalGroups` 函数
