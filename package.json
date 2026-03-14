@@ -25,6 +25,11 @@
       }
     ]
   },
+  "publisher": "tianfangyetan",
+  "author": {
+    "name": "tianfangyetan1"
+  },
+  "icon": "resources/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/tianfangyetan1/vscode-gkd-toolkit.git"
