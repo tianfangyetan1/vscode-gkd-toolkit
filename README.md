@@ -12,9 +12,9 @@
 
 1. 当前工作区安装以下 npm 包
 
-  - `@gkd-kit/api`
-  - `@gkd-kit/define`
-  - `@gkd-kit/tools`
+   - `@gkd-kit/api`
+   - `@gkd-kit/define`
+   - `@gkd-kit/tools`
 
 2. 当前编辑器打开了 `src` 或者 `src/apps` 文件夹下的 `.ts` 文件
 
