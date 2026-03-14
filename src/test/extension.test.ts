@@ -164,6 +164,7 @@ export default defineGkdApp({
 			assert.strictEqual(entries.length, 5);
 			assert.deepStrictEqual(entries.map((entry) => entry.urls.length), [3, 1, 1, 6, 1]);
 			assert.ok(entries.every((entry) => entry.urls.every((url) => url.startsWith('https://'))));
+			assert.ok(entries.every((entry) => entry.selector === undefined));
 		});
 
 		test('过滤非 http(s) 链接', () => {
@@ -178,6 +179,44 @@ export default defineGkdApp({
 			const entries = __test__.findSnapshotUrlsEntries(source);
 			assert.deepStrictEqual(entries[0]?.urls, ['https://ok.com', 'http://ok2.com']);
 		});
+
+		test('当同对象 rules 为字符串时提取 selector', () => {
+			const source = `
+				const rule = {
+					key: 1,
+					rules: '@TextView > [text="跳过"]',
+					snapshotUrls: 'https://i.gkd.li/i/25821346',
+				};
+			`;
+			const entries = __test__.findSnapshotUrlsEntries(source);
+			assert.strictEqual(entries.length, 1);
+			assert.strictEqual(entries[0]?.selector, '@TextView < [text="跳过"]');
+		});
+
+		test('当同对象 matches 为字符串时提取 selector', () => {
+			const source = `
+				const rule = {
+					key: 2,
+					matches: '@TextView[text="关闭"]',
+					snapshotUrls: ['https://i.gkd.li/i/25821346'],
+				};
+			`;
+			const entries = __test__.findSnapshotUrlsEntries(source);
+			assert.strictEqual(entries.length, 1);
+			assert.strictEqual(entries[0]?.selector, '@TextView[text="关闭"]');
+		});
+
+		test('rules 非字符串时不提取 selector', () => {
+			const source = `
+				const rule = {
+					rules: [{ matches: '@TextView' }],
+					snapshotUrls: 'https://i.gkd.li/i/25821346',
+				};
+			`;
+			const entries = __test__.findSnapshotUrlsEntries(source);
+			assert.strictEqual(entries.length, 1);
+			assert.strictEqual(entries[0]?.selector, undefined);
+		});
 	});
 
 	suite('isValidHttpUrl', () => {
@@ -186,6 +225,34 @@ export default defineGkdApp({
 			assert.strictEqual(__test__.isValidHttpUrl('http://a.com'), true);
 			assert.strictEqual(__test__.isValidHttpUrl('ftp://a.com'), false);
 			assert.strictEqual(__test__.isValidHttpUrl('not-url'), false);
+		});
+	});
+
+	suite('gkd query helpers', () => {
+		test('encodeSelectorToBase64 按 UTF-8 编码', () => {
+			const encoded = __test__.encodeSelectorToBase64('@TextView[text="关闭"]');
+			assert.strictEqual(encoded, Buffer.from('@TextView[text="关闭"]', 'utf8').toString('base64'));
+		});
+
+		test('appendGkdParam 追加 gkd 参数', () => {
+			const selector = '@TextView[text="关闭"]';
+			const result = __test__.appendGkdParam('https://i.gkd.li/i/25821346', selector);
+			assert.ok(result);
+			const parsed = new URL(result ?? '');
+			assert.strictEqual(parsed.searchParams.get('gkd'), Buffer.from(selector, 'utf8').toString('base64'));
+		});
+
+		test('appendGkdParam 可覆盖已有 gkd 并保留其他参数', () => {
+			const selector = '@TextView[text="跳过"]';
+			const result = __test__.appendGkdParam('https://i.gkd.li/i/25821346?a=1&gkd=old', selector);
+			assert.ok(result);
+			const parsed = new URL(result ?? '');
+			assert.strictEqual(parsed.searchParams.get('a'), '1');
+			assert.strictEqual(parsed.searchParams.get('gkd'), Buffer.from(selector, 'utf8').toString('base64'));
+		});
+
+		test('appendGkdParam 遇到非法 URL 返回 null', () => {
+			assert.strictEqual(__test__.appendGkdParam('not-a-url', '@TextView'), null);
 		});
 	});
 });

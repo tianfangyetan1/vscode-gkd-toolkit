@@ -1,7 +1,7 @@
 {
   "name": "gkd-toolkit",
   "displayName": "GKD Toolkit",
-  "description": "",
+  "description": "GKD Toolkit for VS Code",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.109.0"
@@ -18,10 +18,15 @@
       {
         "command": "gkd-toolkit.openAllSnapshotUrls",
         "title": "全部打开"
+      },
+      {
+        "command": "gkd-toolkit.openAllSnapshotUrlsWithQuery",
+        "title": "全部打开并查询"
       }
     ]
   },
   "scripts": {
+    "build": "vsce package",
     "vscode:prepublish": "pnpm run package",
     "compile": "webpack",
     "watch": "webpack --watch",
