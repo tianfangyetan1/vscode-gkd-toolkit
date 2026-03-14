@@ -190,7 +190,7 @@ export default defineGkdApp({
 			`;
 			const entries = __test__.findSnapshotUrlsEntries(source);
 			assert.strictEqual(entries.length, 1);
-			assert.strictEqual(entries[0]?.selector, '@TextView < [text="跳过"]');
+			assert.strictEqual(entries[0]?.selector, '@TextView > [text="跳过"]');
 		});
 
 		test('当同对象 matches 为字符串时提取 selector', () => {
@@ -216,6 +216,32 @@ export default defineGkdApp({
 			const entries = __test__.findSnapshotUrlsEntries(source);
 			assert.strictEqual(entries.length, 1);
 			assert.strictEqual(entries[0]?.selector, undefined);
+		});
+
+		test('同对象中存在数组属性时仍可提取 matches', () => {
+			const source = `
+				const rule = {
+					preKeys: [0],
+					matches: '@[clickable=true] >3 [text="不感兴趣"]',
+					snapshotUrls: 'https://i.gkd.li/i/14428912',
+				};
+			`;
+			const entries = __test__.findSnapshotUrlsEntries(source);
+			assert.strictEqual(entries.length, 1);
+			assert.strictEqual(entries[0]?.selector, '@[clickable=true] >3 [text="不感兴趣"]');
+		});
+
+		test('同对象中存在对象属性时仍可提取 matches', () => {
+			const source = `
+				const rule = {
+					extra: { enabled: true },
+					matches: '@TextView[text="关闭"]',
+					snapshotUrls: ['https://i.gkd.li/i/25821346'],
+				};
+			`;
+			const entries = __test__.findSnapshotUrlsEntries(source);
+			assert.strictEqual(entries.length, 1);
+			assert.strictEqual(entries[0]?.selector, '@TextView[text="关闭"]');
 		});
 	});
 

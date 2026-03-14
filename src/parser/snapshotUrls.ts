@@ -527,7 +527,8 @@ function parsePropertyAt(text: string, startIndex: number): { key: string; value
 		return { key: keyToken.key, valueType: 'string', value: quoted.value, nextIndex: quoted.nextIndex };
 	}
 
-	return { key: keyToken.key, valueType: 'other', nextIndex: cursor + 1 };
+	// 保持在值起始位置继续扫描，避免跳过 `[` / `{` / `(` 导致深度计数错位。
+	return { key: keyToken.key, valueType: 'other', nextIndex: cursor };
 }
 
 /**
