@@ -16,7 +16,10 @@ export function encodeSelectorToBase64(selector: string): string {
 export function appendGkdParam(url: string, selector: string): string | null {
 	try {
 		const value = new URL(url);
-		value.searchParams.set('gkd', encodeSelectorToBase64(selector));
+		let  selectorEncoding = encodeSelectorToBase64(selector)
+			.replaceAll('+', '-')
+			.replaceAll('=', '');
+		value.searchParams.set('gkd', selectorEncoding);
 		return value.toString();
 	} catch {
 		return null;
