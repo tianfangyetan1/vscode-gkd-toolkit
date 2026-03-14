@@ -1,6 +1,6 @@
 {
-  "name": "gkd-file-outline",
-  "displayName": "GKD file Outline",
+  "name": "gkd-toolkit",
+  "displayName": "GKD Toolkit",
   "description": "",
   "version": "0.0.1",
   "engines": {
@@ -9,13 +9,15 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:typescript"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "gkd-file-outline.helloWorld",
-        "title": "Hello World"
+        "command": "gkd-toolkit.openAllSnapshotUrls",
+        "title": "全部打开"
       }
     ]
   },
