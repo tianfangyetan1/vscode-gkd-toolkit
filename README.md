@@ -1,6 +1,6 @@
 # GKD Toolkit
 
-GKD 订阅项目的 VS Code 扩展。
+[GKD 订阅项目](https://github.com/gkd-kit/subscription-template) 的 VS Code 扩展。
 
 ## 功能
 
