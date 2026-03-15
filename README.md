@@ -34,8 +34,8 @@
    
 <img src="./docs/images/request.webp" alt="request" style="width: 50%; height: auto;">
 
->TIP
+> [!NOTE]
 >
-> 建议您`配置受信任的域`，否则会在打开多条链接出现每条链接都需要用户手动同意安全确认情况
+> 如果未配置受信任域，在打开多个链接时可能需要逐个手动确认安全提示。
 <img src="./docs/images/config.webp" alt="config" style="width: 50%; height: auto;">
 
