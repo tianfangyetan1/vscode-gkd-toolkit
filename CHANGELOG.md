@@ -1,5 +1,11 @@
 # Change Log
 
+## [0.1.2] - 2026-03-14
+
+### Fixed
+
+- Improve selector base64 encoding
+
 ## [0.1.1] - 2026-03-14
 
 ### Fixed
