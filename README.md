@@ -10,6 +10,10 @@
   - [x] 同时查询选择器
 - [ ] 覆写文档符号行为
 
+## 使用效果
+
+![打开所有快照同时查询选择器](https://github.com/user-attachments/assets/be7f4ada-1627-44d2-a27c-10ef3f5096fd)
+
 ## 启用条件
 
 1. 当前工作区安装以下 npm 包
