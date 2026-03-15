@@ -16,7 +16,7 @@
 
 ## 启用条件
 
-1. 当前工作区安装以下 npm 包
+1. 当前工作区项目安装了以下 npm 包
 
     - `@gkd-kit/api`
     - `@gkd-kit/define`
