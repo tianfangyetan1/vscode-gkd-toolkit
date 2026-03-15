@@ -1,6 +1,5 @@
 # GKD Toolkit
 
-[![GitHub Release](https://img.shields.io/github/v/release/tianfangyetan1/vscode-gkd-toolkit)](https://github.com/tianfangyetan1/vscode-gkd-toolkit/releases/latest)
 [![vscode marketplace version](https://img.shields.io/vscode-marketplace/v/tianfangyetan.gkd-toolkit.svg?label=vscode%20marketplace)](https://marketplace.visualstudio.com/items?itemName=tianfangyetan.gkd-toolkit)
 
 [GKD 订阅项目](https://github.com/gkd-kit/subscription-template) 的 VS Code 辅助开发扩展。
