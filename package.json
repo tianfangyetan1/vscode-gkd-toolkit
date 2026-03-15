@@ -2,7 +2,7 @@
   "name": "gkd-toolkit",
   "displayName": "GKD Toolkit",
   "description": "GKD Toolkit for VS Code",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "engines": {
     "vscode": "^1.109.0"
   },
