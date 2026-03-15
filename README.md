@@ -23,19 +23,14 @@
 ## 使用方法
 
 1. 前往vs code 扩展市场安装 `GKD Toolkit` 扩展
-  
-<img src='./docs/images/Plugins.webp' alt="Plugin" style="width: 50%; height: auto;">
 
 2. 返回代码会出现`snapshotUrls`快照/组上方会出现`全部打开|全部打开并查询`
-   
-<img src="./docs/images/editView.webp" alt="editView" style="width: 50%; height: auto;">
 
 3. 首次使用会出现`是否要Code打开外部网站?`请允许
-   
-<img src="./docs/images/request.webp" alt="request" style="width: 50%; height: auto;">
 
 > [!NOTE]
 >
 > 如果未配置受信任域，在打开多个链接时可能需要逐个手动确认安全提示。
+<img src="./docs/images/request.webp" alt="request" style="width: 50%; height: auto;">
 <img src="./docs/images/config.webp" alt="config" style="width: 50%; height: auto;">
 
