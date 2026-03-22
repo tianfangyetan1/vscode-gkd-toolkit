@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as ts from 'typescript';
 import { __test__ } from '../extension';
-import { setTypeScriptModule } from '../parser/snapshotUrls';
+import { setTypeScriptModule } from '../parser/utils';
 
 suite('GKD Toolkit Test Suite', () => {
 	suiteSetup(() => {
@@ -213,6 +213,125 @@ export default defineGkdApp({
 
 		test('appendGkdParam 遇到非法 URL 返回 null', () => {
 			assert.strictEqual(__test__.appendGkdParam('not-a-url', '@TextView'), null);
+		});
+	});
+
+	suite('findDocumentSymbols', () => {
+		test('解析 defineGkdApp 的 3 层大纲', () => {
+			const source = `import { defineGkdApp } from '@gkd-kit/define';
+
+export default defineGkdApp({
+  id: 'com.example.app',
+  groups: [
+    {
+      key: 1,
+      name: '开屏广告',
+      rules: [
+        { key: 0, name: '跳过按钮', matches: '[text="跳过"]' },
+        { key: 1, matches: '[text="关闭"]' },
+      ],
+    },
+    {
+      key: 2,
+      name: '弹窗广告',
+      rules: '@TextView > [text="跳过"]',
+    },
+  ],
+});`;
+			const symbols = __test__.findDocumentSymbols(source);
+			assert.strictEqual(symbols.length, 1);
+
+			const root = symbols[0];
+			assert.strictEqual(root.name, 'export default');
+			assert.strictEqual(root.children.length, 2);
+
+			const group1 = root.children[0];
+			assert.strictEqual(group1.name, '开屏广告');
+			assert.strictEqual(group1.children.length, 2);
+			assert.strictEqual(group1.children[0].name, '跳过按钮');
+			assert.strictEqual(group1.children[1].name, 'key=1');
+
+			const group2 = root.children[1];
+			assert.strictEqual(group2.name, '弹窗广告');
+			assert.strictEqual(group2.children.length, 0);
+		});
+
+		test('解析 defineGkdGlobalGroups 格式', () => {
+			const source = `import { defineGkdGlobalGroups } from '@gkd-kit/define';
+
+export default defineGkdGlobalGroups({
+  groups: [
+    {
+      key: 1,
+      name: '开屏广告',
+      rules: [
+        { key: 0, name: '通用跳过', fastQuery: true },
+      ],
+    },
+  ],
+});`;
+			const symbols = __test__.findDocumentSymbols(source);
+			assert.strictEqual(symbols.length, 1);
+			assert.strictEqual(symbols[0].children.length, 1);
+			assert.strictEqual(symbols[0].children[0].name, '开屏广告');
+			assert.strictEqual(symbols[0].children[0].children.length, 1);
+			assert.strictEqual(symbols[0].children[0].children[0].name, '通用跳过');
+		});
+
+		test('无 name 时回退到 key', () => {
+			const source = `export default defineGkdApp({
+  id: 'com.example',
+  groups: [
+    {
+      key: 3,
+      rules: [
+        { key: 0 },
+        { key: 5 },
+      ],
+    },
+  ],
+});`;
+			const symbols = __test__.findDocumentSymbols(source);
+			const group = symbols[0].children[0];
+			assert.strictEqual(group.name, 'key=3');
+			assert.strictEqual(group.children[0].name, 'key=0');
+			assert.strictEqual(group.children[1].name, 'key=5');
+		});
+
+		test('name 为空字符串时回退到 key', () => {
+			const source = `export default defineGkdApp({
+  id: 'com.example',
+  groups: [
+    {
+      key: 1,
+      name: '',
+      rules: [{ key: 0, name: '' }],
+    },
+  ],
+});`;
+			const symbols = __test__.findDocumentSymbols(source);
+			assert.strictEqual(symbols[0].children[0].name, 'key=1');
+			assert.strictEqual(symbols[0].children[0].children[0].name, 'key=0');
+		});
+
+		test('既没有 name 也没有 key 时显示未命名', () => {
+			const source = `export default defineGkdApp({
+  id: 'com.example',
+  groups: [
+    {
+      rules: [{ matches: '[text="跳过"]' }],
+    },
+  ],
+});`;
+			const symbols = __test__.findDocumentSymbols(source);
+			assert.strictEqual(symbols[0].children[0].name, '[未命名规则组]');
+			assert.strictEqual(symbols[0].children[0].children[0].name, '[未命名规则]');
+		});
+
+		test('无 export default 时返回空', () => {
+			const source = `const app = defineGkdApp({ id: 'com.example', groups: [] });`;
+			const symbols = __test__.findDocumentSymbols(source);
+			assert.strictEqual(symbols.length, 0);
 		});
 	});
 });
