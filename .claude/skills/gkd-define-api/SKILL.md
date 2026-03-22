@@ -1,7 +1,7 @@
 ---
 name: gkd-define-api
 description: "@gkd-kit/define API 参考，包含 defineGkdApp 和 defineGkdGlobalGroups 的完整类型定义和用法，用于编写 GKD 规则时查看"
-user_invocable: true
+user-invocable: true
 ---
 
 # @gkd-kit/define API 参考
