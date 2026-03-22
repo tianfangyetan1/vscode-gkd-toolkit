@@ -23,7 +23,17 @@
         "command": "gkd-toolkit.openAllSnapshotUrlsWithQuery",
         "title": "全部打开并查询"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "GKD Toolkit",
+      "properties": {
+        "gkd-toolkit.outline.hideSingleRule": {
+          "type": "boolean",
+          "default": true,
+          "description": "当规则组内只有一条规则时，不在大纲中展开该规则"
+        }
+      }
+    }
   },
   "publisher": "tianfangyetan",
   "author": {

@@ -249,7 +249,7 @@ export default defineGkdApp({
   });
 
   suite("findDocumentSymbols", () => {
-    test("解析 defineGkdApp 的 3 层大纲", () => {
+    test("解析 defineGkdApp 的 2 层大纲", () => {
       const source = `import { defineGkdApp } from '@gkd-kit/define';
 
 export default defineGkdApp({
@@ -271,19 +271,15 @@ export default defineGkdApp({
   ],
 });`;
       const symbols = __test__.findDocumentSymbols(source);
-      assert.strictEqual(symbols.length, 1);
+      assert.strictEqual(symbols.length, 2);
 
-      const root = symbols[0];
-      assert.strictEqual(root.name, "export default");
-      assert.strictEqual(root.children.length, 2);
-
-      const group1 = root.children[0];
+      const group1 = symbols[0];
       assert.strictEqual(group1.name, "开屏广告");
       assert.strictEqual(group1.children.length, 2);
       assert.strictEqual(group1.children[0].name, "跳过按钮");
       assert.strictEqual(group1.children[1].name, "key=1");
 
-      const group2 = root.children[1];
+      const group2 = symbols[1];
       assert.strictEqual(group2.name, "弹窗广告");
       assert.strictEqual(group2.children.length, 0);
     });
@@ -298,16 +294,17 @@ export default defineGkdGlobalGroups({
       name: '开屏广告',
       rules: [
         { key: 0, name: '通用跳过', fastQuery: true },
+        { key: 1, name: '备用跳过', fastQuery: true },
       ],
     },
   ],
 });`;
       const symbols = __test__.findDocumentSymbols(source);
       assert.strictEqual(symbols.length, 1);
-      assert.strictEqual(symbols[0].children.length, 1);
-      assert.strictEqual(symbols[0].children[0].name, "开屏广告");
-      assert.strictEqual(symbols[0].children[0].children.length, 1);
-      assert.strictEqual(symbols[0].children[0].children[0].name, "通用跳过");
+      assert.strictEqual(symbols[0].name, "开屏广告");
+      assert.strictEqual(symbols[0].children.length, 2);
+      assert.strictEqual(symbols[0].children[0].name, "通用跳过");
+      assert.strictEqual(symbols[0].children[1].name, "备用跳过");
     });
 
     test("无 name 时回退到 key", () => {
@@ -324,10 +321,26 @@ export default defineGkdGlobalGroups({
   ],
 });`;
       const symbols = __test__.findDocumentSymbols(source);
-      const group = symbols[0].children[0];
+      const group = symbols[0];
       assert.strictEqual(group.name, "key=3");
       assert.strictEqual(group.children[0].name, "key=0");
       assert.strictEqual(group.children[1].name, "key=5");
+    });
+
+    test("rules 只有一个对象时不生成子符号", () => {
+      const source = `export default defineGkdApp({
+  id: 'com.example',
+  groups: [
+    {
+      key: 1,
+      name: '开屏广告',
+      rules: [{ key: 0, name: '跳过按钮' }],
+    },
+  ],
+});`;
+      const symbols = __test__.findDocumentSymbols(source);
+      assert.strictEqual(symbols[0].name, "开屏广告");
+      assert.strictEqual(symbols[0].children.length, 0);
     });
 
     test("name 为空字符串时回退到 key", () => {
@@ -337,13 +350,17 @@ export default defineGkdGlobalGroups({
     {
       key: 1,
       name: '',
-      rules: [{ key: 0, name: '' }],
+      rules: [
+        { key: 0, name: '' },
+        { key: 1 },
+      ],
     },
   ],
 });`;
       const symbols = __test__.findDocumentSymbols(source);
-      assert.strictEqual(symbols[0].children[0].name, "key=1");
-      assert.strictEqual(symbols[0].children[0].children[0].name, "key=0");
+      assert.strictEqual(symbols[0].name, "key=1");
+      assert.strictEqual(symbols[0].children[0].name, "key=0");
+      assert.strictEqual(symbols[0].children[1].name, "key=1");
     });
 
     test("既没有 name 也没有 key 时显示未命名", () => {
@@ -351,16 +368,16 @@ export default defineGkdGlobalGroups({
   id: 'com.example',
   groups: [
     {
-      rules: [{ matches: '[text="跳过"]' }],
+      rules: [
+        { matches: '[text="跳过"]' },
+        { matches: '[text="关闭"]' },
+      ],
     },
   ],
 });`;
       const symbols = __test__.findDocumentSymbols(source);
-      assert.strictEqual(symbols[0].children[0].name, "[未命名规则组]");
-      assert.strictEqual(
-        symbols[0].children[0].children[0].name,
-        "[未命名规则]",
-      );
+      assert.strictEqual(symbols[0].name, "[未命名规则组]");
+      assert.strictEqual(symbols[0].children[0].name, "[未命名规则]");
     });
 
     test("无 export default 时返回空", () => {

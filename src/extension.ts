@@ -65,14 +65,8 @@ class SnapshotUrlsCodeLensProvider implements vscode.CodeLensProvider {
   }
 }
 
-const SYMBOL_KINDS: vscode.SymbolKind[] = [
-  vscode.SymbolKind.Module,
-  vscode.SymbolKind.Class,
-  vscode.SymbolKind.Field,
-];
-
 /**
- * 为目标文档提供 3 层文档大纲：export default → groups → rules。
+ * 为目标文档提供 2 层文档大纲：groups → rules。
  */
 class GkdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
   public provideDocumentSymbols(
@@ -87,27 +81,29 @@ class GkdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
       return [];
     }
 
-    const entries = findDocumentSymbols(sourceText);
-    return entries.map((entry) => this.toDocumentSymbol(document, entry, 0));
+    const config = vscode.workspace.getConfiguration("gkd-toolkit");
+    const hideSingleRule = config.get<boolean>("outline.hideSingleRule", true);
+    const entries = findDocumentSymbols(sourceText, { hideSingleRule });
+    return entries.map((entry) => this.toDocumentSymbol(document, entry, true));
   }
 
   /**
    * 将自定义的文档符号列表转换为 VS Code 的 DocumentSymbol 对象。
    *
    * @param document 当前文本文档，用于将偏移量转换为行列位置。
-   * @param entry 解析出的文档符号列表。
-   * @param depth 当前符号的层级深度，用于决定符号的类型。
+   * @param entry 解析出的文档符号条目。
+   * @param isGroup 是否为规则组层级，决定符号类型（Class 或 Field）。
    * @returns 转换后的 VS Code 文档符号对象。
    */
   private toDocumentSymbol(
     document: vscode.TextDocument,
     entry: DocumentSymbolEntry,
-    depth: number,
+    isGroup: boolean,
   ): vscode.DocumentSymbol {
     const startPos = document.positionAt(entry.start);
     const endPos = document.positionAt(entry.end);
     const range = new vscode.Range(startPos, endPos);
-    const kind = SYMBOL_KINDS[Math.min(depth, SYMBOL_KINDS.length - 1)];
+    const kind = isGroup ? vscode.SymbolKind.Class : vscode.SymbolKind.Field;
 
     const symbol = new vscode.DocumentSymbol(
       entry.name,
@@ -118,7 +114,7 @@ class GkdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     );
 
     symbol.children = entry.children.map((child) =>
-      this.toDocumentSymbol(document, child, depth + 1),
+      this.toDocumentSymbol(document, child, false),
     );
 
     return symbol;
