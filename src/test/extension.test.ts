@@ -386,4 +386,98 @@ export default defineGkdGlobalGroups({
       assert.strictEqual(symbols.length, 0);
     });
   });
+
+  suite("findRulesArrayRanges", () => {
+    test("提取 groups 下多个规则组的 rules 数组范围", () => {
+      const source = `export default defineGkdApp({
+  id: 'com.example',
+  groups: [
+    {
+      key: 1,
+      rules: [
+        { key: 0, matches: '[text="跳过"]' },
+        { key: 1, matches: '[text="关闭"]' },
+      ],
+    },
+    {
+      key: 2,
+      rules: [
+        { key: 0, matches: '[text="广告"]' },
+      ],
+    },
+  ],
+});`;
+      const ranges = __test__.findRulesArrayRanges(source);
+      assert.strictEqual(ranges.length, 2);
+      // 验证范围指向数组字面量内容
+      for (const range of ranges) {
+        const text = source.slice(range.start, range.end);
+        assert.ok(text.startsWith("["), `应以 [ 开头: ${text}`);
+        assert.ok(text.endsWith("]"), `应以 ] 结尾: ${text}`);
+      }
+    });
+
+    test("rules 为字符串时不返回范围", () => {
+      const source = `export default defineGkdApp({
+  id: 'com.example',
+  groups: [
+    {
+      key: 1,
+      rules: '@TextView > [text="跳过"]',
+    },
+  ],
+});`;
+      const ranges = __test__.findRulesArrayRanges(source);
+      assert.strictEqual(ranges.length, 0);
+    });
+
+    test("rules 为空数组时不返回范围", () => {
+      const source = `export default defineGkdApp({
+  id: 'com.example',
+  groups: [
+    {
+      key: 1,
+      rules: [],
+    },
+  ],
+});`;
+      const ranges = __test__.findRulesArrayRanges(source);
+      assert.strictEqual(ranges.length, 0);
+    });
+
+    test("无 groups 属性时返回空", () => {
+      const source = `export default defineGkdApp({
+  id: 'com.example',
+});`;
+      const ranges = __test__.findRulesArrayRanges(source);
+      assert.strictEqual(ranges.length, 0);
+    });
+
+    test("无 export default 时返回空", () => {
+      const source = `const app = defineGkdApp({ id: 'com.example', groups: [{ key: 1, rules: [{ key: 0 }] }] });`;
+      const ranges = __test__.findRulesArrayRanges(source);
+      assert.strictEqual(ranges.length, 0);
+    });
+
+    test("不匹配 groups 外部的 rules 属性", () => {
+      const source = `export default defineGkdApp({
+  id: 'com.example',
+  groups: [
+    {
+      key: 1,
+      rules: [
+        {
+          key: 0,
+          matches: '[text="跳过"]',
+          nested: { rules: [1, 2, 3] },
+        },
+      ],
+    },
+  ],
+});`;
+      const ranges = __test__.findRulesArrayRanges(source);
+      // 只应匹配 groups 下规则组对象直接的 rules，不应匹配嵌套的 nested.rules
+      assert.strictEqual(ranges.length, 1);
+    });
+  });
 });
