@@ -126,11 +126,28 @@ class GkdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 /**
  * 在规则文件顶部显示「折叠所有规则」按钮。
  * 仅当设置 `gkd-toolkit.collapseAllRules.show` 开启时生效。
+ *
+ * 点击一次后按钮消失；关闭标签页时自动展开折叠，使折叠不会持久化。
  */
-class CollapseAllRulesCodeLensProvider implements vscode.CodeLensProvider {
+class CollapseAllRulesCodeLensProvider
+  implements vscode.CodeLensProvider, vscode.Disposable
+{
+  private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
+  public readonly onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
+
+  /** 已折叠的文档（按钮不再显示） */
+  public readonly collapsedDocs = new Set<string>();
+
+  public refresh(): void {
+    this._onDidChangeCodeLenses.fire();
+  }
+
+  public dispose(): void {
+    this._onDidChangeCodeLenses.dispose();
+  }
+
   public provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
-    const config = vscode.workspace.getConfiguration("gkd-toolkit");
-    if (!config.get<boolean>("collapseAllRules.show", false)) {
+    if (this.collapsedDocs.has(document.uri.toString())) {
       return [];
     }
 
@@ -204,39 +221,10 @@ export function activate(context: vscode.ExtensionContext): void {
     },
   );
 
-  const collapseAllRulesDisposable = vscode.commands.registerCommand(
-    COLLAPSE_ALL_RULES_COMMAND_ID,
-    async () => {
-      const editor = vscode.window.activeTextEditor;
-      if (!editor) {
-        return;
-      }
-
-      const sourceText = editor.document.getText();
-      const ranges = findRulesArrayRanges(sourceText);
-      if (ranges.length === 0) {
-        return;
-      }
-
-      const foldLines = ranges.map(
-        (r) => editor.document.positionAt(r.start).line,
-      );
-      await vscode.commands.executeCommand("editor.fold", {
-        selectionLines: foldLines,
-      });
-    },
-  );
-
   const codeLensProvider = vscode.languages.registerCodeLensProvider(
     { language: "typescript", scheme: "file" },
     new SnapshotUrlsCodeLensProvider(),
   );
-
-  const collapseAllRulesCodeLensProvider =
-    vscode.languages.registerCodeLensProvider(
-      { language: "typescript", scheme: "file" },
-      new CollapseAllRulesCodeLensProvider(),
-    );
 
   const symbolProvider = vscode.languages.registerDocumentSymbolProvider(
     { language: "typescript", scheme: "file" },
@@ -246,11 +234,94 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     openAllDisposable,
     openAllWithQueryDisposable,
-    collapseAllRulesDisposable,
     codeLensProvider,
-    collapseAllRulesCodeLensProvider,
     symbolProvider,
   );
+
+  // 折叠所有规则，仅在设置开启时注册
+  const config = vscode.workspace.getConfiguration("gkd-toolkit");
+  if (config.get<boolean>("collapseAllRules.show", false)) {
+    const collapseAllRulesProvider = new CollapseAllRulesCodeLensProvider();
+
+    const collapseAllRulesDisposable = vscode.commands.registerCommand(
+      COLLAPSE_ALL_RULES_COMMAND_ID,
+      async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          return;
+        }
+
+        const sourceText = editor.document.getText();
+        const ranges = findRulesArrayRanges(sourceText);
+        if (ranges.length === 0) {
+          return;
+        }
+
+        const foldLines = ranges.map(
+          (r) => editor.document.positionAt(r.start).line,
+        );
+        await vscode.commands.executeCommand("editor.fold", {
+          selectionLines: foldLines,
+        });
+
+        collapseAllRulesProvider.collapsedDocs.add(
+          editor.document.uri.toString(),
+        );
+        collapseAllRulesProvider.refresh();
+      },
+    );
+
+    // 文档关闭时清除折叠记录，使下次打开时按钮重新出现
+    const onDocCloseDisposable = vscode.workspace.onDidCloseTextDocument(
+      (doc) => {
+        if (collapseAllRulesProvider.collapsedDocs.delete(doc.uri.toString())) {
+          collapseAllRulesProvider.refresh();
+        }
+      },
+    );
+
+    // 规则文件首次打开时，自动展开所有被折叠的 rules 数组
+    const onDocOpenDisposable = vscode.workspace.onDidOpenTextDocument(
+      (doc) => {
+        if (!isTargetDocument(doc) || !hasTargetDefineImport(doc.getText())) {
+          return;
+        }
+        const ranges = findRulesArrayRanges(doc.getText());
+        if (ranges.length === 0) {
+          return;
+        }
+        // 延迟等待编辑器就绪及 VS Code 恢复折叠状态后再展开
+        setTimeout(async () => {
+          const editor = vscode.window.visibleTextEditors.find(
+            (e) => e.document.uri.toString() === doc.uri.toString(),
+          );
+          if (!editor) {
+            return;
+          }
+          const foldLines = ranges.map(
+            (r) => editor.document.positionAt(r.start).line,
+          );
+          await vscode.commands.executeCommand("editor.unfold", {
+            selectionLines: foldLines,
+          });
+        }, 300);
+      },
+    );
+
+    const collapseAllRulesCodeLensProvider =
+      vscode.languages.registerCodeLensProvider(
+        { language: "typescript", scheme: "file" },
+        collapseAllRulesProvider,
+      );
+
+    context.subscriptions.push(
+      collapseAllRulesDisposable,
+      onDocCloseDisposable,
+      onDocOpenDisposable,
+      collapseAllRulesProvider,
+      collapseAllRulesCodeLensProvider,
+    );
+  }
 }
 
 /**

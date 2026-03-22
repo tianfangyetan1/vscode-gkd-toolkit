@@ -39,7 +39,7 @@
         "gkd-toolkit.collapseAllRules.show": {
           "type": "boolean",
           "default": false,
-          "description": "在规则文件顶部显示「折叠所有规则」按钮"
+          "description": "实验性：在规则文件顶部显示「折叠所有规则」按钮，下次打开时自动展开折叠的部分"
         }
       }
     }
