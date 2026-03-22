@@ -96,7 +96,7 @@ interface StringMatcher {
 | `actionMaximum` | `Integer` | — | 最大执行次数（达到后休眠） |
 | `matchRoot` | `boolean` | `false` | 是否从根节点匹配 |
 | `fastQuery` | `boolean` | `false` | 快速查询优化 |
-| `snapshotUrls` | `IArray<string>` | — | 快照链接（界面截图证据） |
+| `snapshotUrls` | `IArray<string>` | — | 快照链接（包含界面截图及所有无障碍节点信息） |
 | `exampleUrls` | `IArray<string>` | — | 示例链接（GIF/图片） |
 
 ### RawAppRule
@@ -132,13 +132,13 @@ interface StringMatcher {
 
 | 值 | 说明 |
 |---|------|
-| `'click'` | 点击匹配节点（默认） |
-| `'longClick'` | 长按匹配节点 |
+| `'click'` | 点击节点（默认，自动选择使用无障碍点击还是模拟点击） |
+| `'longClick'` | 长按节点（自动使用无障碍长按还是模拟长按） |
 | `'back'` | 模拟返回键 |
-| `'clickCenter'` | 点击节点中心 |
-| `'longClickCenter'` | 长按节点中心 |
-| `'clickNode'` | 点击节点本身 |
-| `'longClickNode'` | 长按节点本身 |
+| `'clickCenter'` | 模拟位置点击节点中心 |
+| `'longClickCenter'` | 模拟位置长按节点中心 |
+| `'clickNode'` | 使用无障碍点击节点 |
+| `'longClickNode'` | 使用无障碍点击长按节点 |
 | `'none'` | 不执行动作 |
 
 ---
