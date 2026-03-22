@@ -8,11 +8,13 @@ import {
   findDocumentSymbols,
   type DocumentSymbolEntry,
 } from "./parser/documentSymbols";
+import { findRulesArrayRanges } from "./parser/rulesRanges";
 import { appendGkdParam, encodeSelectorToBase64 } from "./url/gkdQuery";
 
 const OPEN_ALL_COMMAND_ID = "gkd-toolkit.openAllSnapshotUrls";
 const OPEN_ALL_WITH_QUERY_COMMAND_ID =
   "gkd-toolkit.openAllSnapshotUrlsWithQuery";
+const COLLAPSE_ALL_RULES_COMMAND_ID = "gkd-toolkit.collapseAllRules";
 const REQUIRED_PACKAGES = ["@gkd-kit/api", "@gkd-kit/define", "@gkd-kit/tools"];
 const TARGET_IMPORTS = new Set(["defineGkdGlobalGroups", "defineGkdApp"]);
 
@@ -122,6 +124,36 @@ class GkdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
 }
 
 /**
+ * 在规则文件顶部显示「折叠所有规则」按钮。
+ * 仅当设置 `gkd-toolkit.collapseAllRules.show` 开启时生效。
+ */
+class CollapseAllRulesCodeLensProvider implements vscode.CodeLensProvider {
+  public provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
+    const config = vscode.workspace.getConfiguration("gkd-toolkit");
+    if (!config.get<boolean>("collapseAllRules.show", false)) {
+      return [];
+    }
+
+    if (!isTargetDocument(document)) {
+      return [];
+    }
+
+    const sourceText = document.getText();
+    if (!hasTargetDefineImport(sourceText)) {
+      return [];
+    }
+
+    const range = new vscode.Range(0, 0, 0, 0);
+    return [
+      new vscode.CodeLens(range, {
+        title: "折叠所有规则",
+        command: COLLAPSE_ALL_RULES_COMMAND_ID,
+      }),
+    ];
+  }
+}
+
+/**
  * 扩展激活：校验依赖并注册命令和 CodeLens Provider。
  *
  * @param context VS Code 提供的扩展上下文，用于注册可释放资源。
@@ -172,10 +204,39 @@ export function activate(context: vscode.ExtensionContext): void {
     },
   );
 
+  const collapseAllRulesDisposable = vscode.commands.registerCommand(
+    COLLAPSE_ALL_RULES_COMMAND_ID,
+    async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        return;
+      }
+
+      const sourceText = editor.document.getText();
+      const ranges = findRulesArrayRanges(sourceText);
+      if (ranges.length === 0) {
+        return;
+      }
+
+      const foldLines = ranges.map(
+        (r) => editor.document.positionAt(r.start).line,
+      );
+      await vscode.commands.executeCommand("editor.fold", {
+        selectionLines: foldLines,
+      });
+    },
+  );
+
   const codeLensProvider = vscode.languages.registerCodeLensProvider(
     { language: "typescript", scheme: "file" },
     new SnapshotUrlsCodeLensProvider(),
   );
+
+  const collapseAllRulesCodeLensProvider =
+    vscode.languages.registerCodeLensProvider(
+      { language: "typescript", scheme: "file" },
+      new CollapseAllRulesCodeLensProvider(),
+    );
 
   const symbolProvider = vscode.languages.registerDocumentSymbolProvider(
     { language: "typescript", scheme: "file" },
@@ -185,7 +246,9 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     openAllDisposable,
     openAllWithQueryDisposable,
+    collapseAllRulesDisposable,
     codeLensProvider,
+    collapseAllRulesCodeLensProvider,
     symbolProvider,
   );
 }
@@ -273,6 +336,7 @@ export const __test__ = {
   hasTargetDefineImport,
   findSnapshotUrlsEntries,
   findDocumentSymbols,
+  findRulesArrayRanges,
   isValidHttpUrl,
   appendGkdParam,
   encodeSelectorToBase64,

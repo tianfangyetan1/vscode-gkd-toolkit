@@ -22,6 +22,10 @@
       {
         "command": "gkd-toolkit.openAllSnapshotUrlsWithQuery",
         "title": "全部打开并查询"
+      },
+      {
+        "command": "gkd-toolkit.collapseAllRules",
+        "title": "折叠所有规则"
       }
     ],
     "configuration": {
@@ -31,6 +35,11 @@
           "type": "boolean",
           "default": true,
           "description": "当规则组内只有一条规则时，不在大纲中单独显示规则"
+        },
+        "gkd-toolkit.collapseAllRules.show": {
+          "type": "boolean",
+          "default": false,
+          "description": "在规则文件顶部显示「折叠所有规则」按钮"
         }
       }
     }
