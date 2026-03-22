@@ -1,8 +1,13 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
+import * as ts from 'typescript';
 import { __test__ } from '../extension';
+import { setTypeScriptModule } from '../parser/snapshotUrls';
 
 suite('GKD Toolkit Test Suite', () => {
+	suiteSetup(() => {
+		setTypeScriptModule(ts);
+	});
 	test('VS Code API is available', () => {
 		assert.ok(vscode.workspace);
 	});
@@ -27,85 +32,6 @@ suite('GKD Toolkit Test Suite', () => {
 		test('非目标导入返回 false', () => {
 			const source = `import { defineRule } from '@gkd-kit/define';`;
 			assert.strictEqual(__test__.hasTargetDefineImport(source), false);
-		});
-	});
-
-	suite('skipWhitespace', () => {
-		test('跳过空格、换行与制表符', () => {
-			const text = ' \n\tabc';
-			assert.strictEqual(__test__.skipWhitespace(text, 0), 3);
-		});
-	});
-
-	suite('readQuotedString', () => {
-		test('解析包含转义字符的字符串', () => {
-			const text = `'a\\'b\\\\c'`;
-			const result = __test__.readQuotedString(text, 0);
-			assert.deepStrictEqual(result, { value: "a'b\\c", nextIndex: text.length });
-		});
-
-		test('未闭合字符串返回 null', () => {
-			assert.strictEqual(__test__.readQuotedString(`'abc`, 0), null);
-		});
-	});
-
-	suite('readArrayLiteral', () => {
-		test('支持注释与字符串内容并定位到右中括号', () => {
-			const text = `[
-				'https://a.com', // comment with ]
-				"https://b.com", /* block ] comment */
-				'not ] end'
-			] next`;
-			const result = __test__.readArrayLiteral(text, 0);
-			assert.ok(result);
-			assert.strictEqual(result?.value.trim().startsWith('['), true);
-			assert.strictEqual(result?.nextIndex, text.indexOf('] next') + 1);
-		});
-
-		test('数组未闭合返回 null', () => {
-			assert.strictEqual(__test__.readArrayLiteral(`['a'`, 0), null);
-		});
-	});
-
-	suite('extractStringLiterals', () => {
-		test('提取字符串并忽略注释中的引号', () => {
-			const input = `[
-				"https://a.com",
-				// "https://ignored.com"
-				'https://b.com',
-				/* 'https://ignored2.com' */
-				'  https://c.com  '
-			]`;
-			assert.deepStrictEqual(__test__.extractStringLiterals(input), [
-				'https://a.com',
-				'https://b.com',
-				'https://c.com',
-			]);
-		});
-	});
-
-	suite('parseSnapshotUrlsValue', () => {
-		test('支持字符串字面量', () => {
-			const source = `'https://i.gkd.li/i/1', next`;
-			const result = __test__.parseSnapshotUrlsValue(source, 0);
-			assert.deepStrictEqual(result, {
-				urls: ['https://i.gkd.li/i/1'],
-				nextIndex: source.indexOf(','),
-			});
-		});
-
-		test('支持数组字面量', () => {
-			const source = `[
-				'https://i.gkd.li/i/1',
-				'https://i.gkd.li/i/2',
-			], next`;
-			const result = __test__.parseSnapshotUrlsValue(source, 0);
-			assert.deepStrictEqual(result?.urls, ['https://i.gkd.li/i/1', 'https://i.gkd.li/i/2']);
-			assert.strictEqual(result?.nextIndex, source.indexOf('],') + 1);
-		});
-
-		test('非字符串/数组起始字符返回 null', () => {
-			assert.strictEqual(__test__.parseSnapshotUrlsValue(`{ a: 1 }`, 0), null);
 		});
 	});
 
@@ -169,12 +95,14 @@ export default defineGkdApp({
 
 		test('过滤非 http(s) 链接', () => {
 			const source = `
-				snapshotUrls: [
-					'https://ok.com',
-					'http://ok2.com',
-					'ftp://bad.com',
-					'not-a-url',
-				],
+				const rule = {
+					snapshotUrls: [
+						'https://ok.com',
+						'http://ok2.com',
+						'ftp://bad.com',
+						'not-a-url',
+					],
+				};
 			`;
 			const entries = __test__.findSnapshotUrlsEntries(source);
 			assert.deepStrictEqual(entries[0]?.urls, ['https://ok.com', 'http://ok2.com']);
@@ -255,6 +183,12 @@ export default defineGkdApp({
 	});
 
 	suite('gkd query helpers', () => {
+		function toUrlSafeBase64(selector: string): string {
+			return Buffer.from(selector, 'utf8').toString('base64')
+				.replaceAll('+', '-')
+				.replaceAll('=', '');
+		}
+
 		test('encodeSelectorToBase64 按 UTF-8 编码', () => {
 			const encoded = __test__.encodeSelectorToBase64('@TextView[text="关闭"]');
 			assert.strictEqual(encoded, Buffer.from('@TextView[text="关闭"]', 'utf8').toString('base64'));
@@ -265,7 +199,7 @@ export default defineGkdApp({
 			const result = __test__.appendGkdParam('https://i.gkd.li/i/25821346', selector);
 			assert.ok(result);
 			const parsed = new URL(result ?? '');
-			assert.strictEqual(parsed.searchParams.get('gkd'), Buffer.from(selector, 'utf8').toString('base64'));
+			assert.strictEqual(parsed.searchParams.get('gkd'), toUrlSafeBase64(selector));
 		});
 
 		test('appendGkdParam 可覆盖已有 gkd 并保留其他参数', () => {
@@ -274,7 +208,7 @@ export default defineGkdApp({
 			assert.ok(result);
 			const parsed = new URL(result ?? '');
 			assert.strictEqual(parsed.searchParams.get('a'), '1');
-			assert.strictEqual(parsed.searchParams.get('gkd'), Buffer.from(selector, 'utf8').toString('base64'));
+			assert.strictEqual(parsed.searchParams.get('gkd'), toUrlSafeBase64(selector));
 		});
 
 		test('appendGkdParam 遇到非法 URL 返回 null', () => {

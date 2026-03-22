@@ -1,14 +1,11 @@
+declare const __non_webpack_require__: NodeRequire;
 import * as vscode from 'vscode';
 import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import {
-	extractStringLiterals,
 	findSnapshotUrlsEntries,
 	isValidHttpUrl,
-	parseSnapshotUrlsValue,
-	readArrayLiteral,
-	readQuotedString,
-	skipWhitespace,
+	setTypeScriptModule,
 } from './parser/snapshotUrls';
 import { appendGkdParam, encodeSelectorToBase64 } from './url/gkdQuery';
 
@@ -70,9 +67,13 @@ class SnapshotUrlsCodeLensProvider implements vscode.CodeLensProvider {
  * @returns 无返回值。
  */
 export function activate(context: vscode.ExtensionContext): void {
-	if (!hasRequiredPackagesInstalled()) {
+	const workspacePath = findWorkspaceWithRequiredPackages();
+	if (!workspacePath) {
 		return;
 	}
+
+	const ts = __non_webpack_require__(path.join(workspacePath, 'node_modules', 'typescript'));
+	setTypeScriptModule(ts);
 
 	const openAllDisposable = vscode.commands.registerCommand(OPEN_ALL_COMMAND_ID, async (urls: unknown) => {
 		const list = Array.isArray(urls) ? urls : [];
@@ -91,7 +92,7 @@ export function activate(context: vscode.ExtensionContext): void {
 			const queryUrls = validUrls
 				.map((url) => appendGkdParam(url, selector))
 				.filter((url): url is string => typeof url === 'string');
-			await Promise.all(queryUrls.map((url) => vscode.env.openExternal(vscode.Uri.parse(url))));
+			await Promise.all(queryUrls.map((url) => vscode.env.openExternal(vscode.Uri.parse(url, true))));
 		},
 	);
 
@@ -111,18 +112,19 @@ export function activate(context: vscode.ExtensionContext): void {
 export function deactivate(): void {}
 
 /**
- * 检查任一工作区是否同时安装了三个必需依赖包。
+ * 查找同时安装了所有必需依赖包的工作区路径。
  *
- * @returns 只要存在一个工作区安装了全部必需依赖，则返回 `true`。
+ * @returns 找到的工作区文件系统路径；未找到时返回 `undefined`。
  */
-function hasRequiredPackagesInstalled(): boolean {
+function findWorkspaceWithRequiredPackages(): string | undefined {
 	const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
-	return workspaceFolders.some((folder) => {
+	const folder = workspaceFolders.find((f) => {
 		return REQUIRED_PACKAGES.every((pkgName) => {
-			const pkgPath = path.join(folder.uri.fsPath, 'node_modules', ...pkgName.split('/'));
+			const pkgPath = path.join(f.uri.fsPath, 'node_modules', ...pkgName.split('/'));
 			return existsSync(pkgPath);
 		});
 	});
+	return folder?.uri.fsPath;
 }
 
 /**
@@ -150,7 +152,7 @@ function isTargetDocument(document: vscode.TextDocument): boolean {
 }
 
 /**
- * 判断文件是否从 @gkd-kit/define 导入了目标定义函数。
+ * 判断文件是否从 \@gkd-kit/define 导入了目标定义函数。
  *
  * @param sourceText 文档的完整源码文本。
  * @returns 当源码中存在目标导入项时返回 `true`。
@@ -176,11 +178,6 @@ function hasTargetDefineImport(sourceText: string): boolean {
 export const __test__ = {
 	hasTargetDefineImport,
 	findSnapshotUrlsEntries,
-	parseSnapshotUrlsValue,
-	skipWhitespace,
-	readQuotedString,
-	readArrayLiteral,
-	extractStringLiterals,
 	isValidHttpUrl,
 	appendGkdParam,
 	encodeSelectorToBase64,
