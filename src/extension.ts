@@ -5,8 +5,12 @@ import * as path from 'node:path';
 import {
 	findSnapshotUrlsEntries,
 	isValidHttpUrl,
-	setTypeScriptModule,
 } from './parser/snapshotUrls';
+import { setTypeScriptModule } from './parser/utils';
+import {
+	findDocumentSymbols,
+	type DocumentSymbolEntry,
+} from './parser/documentSymbols';
 import { appendGkdParam, encodeSelectorToBase64 } from './url/gkdQuery';
 
 const OPEN_ALL_COMMAND_ID = 'gkd-toolkit.openAllSnapshotUrls';
@@ -60,6 +64,64 @@ class SnapshotUrlsCodeLensProvider implements vscode.CodeLensProvider {
 	}
 }
 
+const SYMBOL_KINDS: vscode.SymbolKind[] = [
+	vscode.SymbolKind.Module,
+	vscode.SymbolKind.Class,
+	vscode.SymbolKind.Field,
+];
+
+/**
+ * 为目标文档提供 3 层文档大纲：export default → groups → rules。
+ */
+class GkdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
+	public provideDocumentSymbols(document: vscode.TextDocument): vscode.DocumentSymbol[] {
+		if (!isTargetDocument(document)) {
+			return [];
+		}
+
+		const sourceText = document.getText();
+		if (!hasTargetDefineImport(sourceText)) {
+			return [];
+		}
+
+		const entries = findDocumentSymbols(sourceText);
+		return entries.map((entry) => this.toDocumentSymbol(document, entry, 0));
+	}
+
+	/**
+	 * 将自定义的文档符号列表转换为 VS Code 的 DocumentSymbol 对象。
+	 *
+	 * @param document 当前文本文档，用于将偏移量转换为行列位置。
+	 * @param entry 解析出的文档符号列表。
+	 * @param depth 当前符号的层级深度，用于决定符号的类型。
+	 * @returns 转换后的 VS Code 文档符号对象。
+	 */
+	private toDocumentSymbol(
+		document: vscode.TextDocument,
+		entry: DocumentSymbolEntry,
+		depth: number,
+	): vscode.DocumentSymbol {
+		const startPos = document.positionAt(entry.start);
+		const endPos = document.positionAt(entry.end);
+		const range = new vscode.Range(startPos, endPos);
+		const kind = SYMBOL_KINDS[Math.min(depth, SYMBOL_KINDS.length - 1)];
+
+		const symbol = new vscode.DocumentSymbol(
+			entry.name,
+			'',
+			kind,
+			range,
+			range,
+		);
+
+		symbol.children = entry.children.map((child) =>
+			this.toDocumentSymbol(document, child, depth + 1),
+		);
+
+		return symbol;
+	}
+}
+
 /**
  * 扩展激活：校验依赖并注册命令和 CodeLens Provider。
  *
@@ -96,18 +158,21 @@ export function activate(context: vscode.ExtensionContext): void {
 		},
 	);
 
-	const provider = vscode.languages.registerCodeLensProvider(
+	const codeLensProvider = vscode.languages.registerCodeLensProvider(
 		{ language: 'typescript', scheme: 'file' },
 		new SnapshotUrlsCodeLensProvider(),
 	);
 
-	context.subscriptions.push(openAllDisposable, openAllWithQueryDisposable, provider);
+	const symbolProvider = vscode.languages.registerDocumentSymbolProvider(
+		{ language: 'typescript', scheme: 'file' },
+		new GkdDocumentSymbolProvider(),
+	);
+
+	context.subscriptions.push(openAllDisposable, openAllWithQueryDisposable, codeLensProvider, symbolProvider);
 }
 
 /**
  * 扩展停用：当前无需额外清理逻辑。
- *
- * @returns 无返回值。
  */
 export function deactivate(): void {}
 
@@ -178,6 +243,7 @@ function hasTargetDefineImport(sourceText: string): boolean {
 export const __test__ = {
 	hasTargetDefineImport,
 	findSnapshotUrlsEntries,
+	findDocumentSymbols,
 	isValidHttpUrl,
 	appendGkdParam,
 	encodeSelectorToBase64,
