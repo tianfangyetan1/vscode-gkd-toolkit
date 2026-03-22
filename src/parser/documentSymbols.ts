@@ -98,7 +98,7 @@ function extractGroups(
 
 /**
  * 将规则组对象提取为文档符号。
- * 
+ *
  * @param _ts TypeScript 模块实例
  * @param sourceFile 当前解析文件的 AST 节点
  * @param groupObj 规则组对象
@@ -126,7 +126,7 @@ function extractGroupSymbol(
 
 /**
  * 将规则对象提取为文档符号。
- * 
+ *
  * @param _ts TypeScript 模块实例
  * @param sourceFile 当前解析文件的 AST 节点
  * @param groupObj 规则组对象

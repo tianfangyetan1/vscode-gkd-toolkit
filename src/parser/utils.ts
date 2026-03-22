@@ -4,7 +4,7 @@ let _ts: typeof ts;
 
 /**
  * 设置 TypeScript 模块实例（从工作区动态加载）。
- * 
+ *
  * @param tsModule TypeScript 模块实例
  */
 export function setTypeScriptModule(tsModule: typeof ts): void {
@@ -13,7 +13,7 @@ export function setTypeScriptModule(tsModule: typeof ts): void {
 
 /**
  * 获取 TypeScript 模块实例。
- * 
+ *
  * @returns TypeScript 模块实例
  */
 export function getTs(): typeof ts {
@@ -22,7 +22,7 @@ export function getTs(): typeof ts {
 
 /**
  * 获取属性赋值节点的属性名。
- * 
+ *
  * @param node 属性赋值节点
  * @returns 属性名，如果不是标识符或字符串字面量则返回 undefined
  */
@@ -40,7 +40,7 @@ export function getPropertyName(
 
 /**
  * 从表达式节点中提取字符串值，支持字符串字面量和字符串数组。
- * 
+ *
  * @param node 表达式节点
  * @returns 提取到的字符串数组
  */
@@ -61,7 +61,7 @@ export function extractStringValues(node: ts.Expression): string[] {
 
 /**
  * 从对象字面量中获取指定名称的字符串属性值。
- * 
+ *
  * @param obj 对象字面量表达式节点
  * @param name 属性名称
  * @returns 字符串属性值，如果未找到或不是字符串字面量则返回 undefined
@@ -84,7 +84,7 @@ export function getStringProperty(
 
 /**
  * 从对象字面量中获取指定属性的值（支持字符串和数字字面量）。
- * 
+ *
  * @param obj 对象字面量表达式节点
  * @param name 属性名称
  * @returns 属性的字符串表示值，如果未找到或不支持该类型则返回 undefined

@@ -4,7 +4,7 @@
  * @returns 编码后的 Base64 字符串。
  */
 export function encodeSelectorToBase64(selector: string): string {
-	return Buffer.from(selector, 'utf8').toString('base64');
+  return Buffer.from(selector, "utf8").toString("base64");
 }
 
 /**
@@ -14,14 +14,14 @@ export function encodeSelectorToBase64(selector: string): string {
  * @returns 追加参数后的 URL 字符串；如果传入的 URL 无效则返回 `null`。
  */
 export function appendGkdParam(url: string, selector: string): string | null {
-	try {
-		const value = new URL(url);
-		let  selectorEncoding = encodeSelectorToBase64(selector)
-			.replaceAll('+', '-')
-			.replaceAll('=', '');
-		value.searchParams.set('gkd', selectorEncoding);
-		return value.toString();
-	} catch {
-		return null;
-	}
+  try {
+    const value = new URL(url);
+    let selectorEncoding = encodeSelectorToBase64(selector)
+      .replaceAll("+", "-")
+      .replaceAll("=", "");
+    value.searchParams.set("gkd", selectorEncoding);
+    return value.toString();
+  } catch {
+    return null;
+  }
 }
