@@ -30,7 +30,7 @@
         "gkd-toolkit.outline.hideSingleRule": {
           "type": "boolean",
           "default": true,
-          "description": "当规则组内只有一条规则时，不在大纲中展开该规则"
+          "description": "当规则组内只有一条规则时，不在大纲中单独显示规则"
         }
       }
     }
