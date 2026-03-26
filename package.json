@@ -32,11 +32,13 @@
       "title": "GKD Toolkit",
       "properties": {
         "gkd-toolkit.outline.hideSingleRule": {
+          "order": 0,
           "type": "boolean",
           "default": true,
           "description": "当规则组内只有一条规则时，不在大纲中单独显示规则"
         },
         "gkd-toolkit.collapseAllRules.show": {
+          "order": 1,
           "type": "boolean",
           "default": false,
           "description": "实验性：在规则文件顶部显示「折叠所有规则」按钮，下次打开时自动展开折叠的部分"
