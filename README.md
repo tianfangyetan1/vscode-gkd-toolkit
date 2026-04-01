@@ -22,7 +22,7 @@
     - `@gkd-kit/define`
     - `@gkd-kit/tools`
 
-2. 当前编辑器打开了 `src` 或者 `src/apps` 文件夹下的 `.ts` 文件
+2. 当前编辑器打开了 `src` 文件夹下的 `.ts` 文件
 
 3. 当前编辑器文件导入了 `defineGkdApp` 或者 `defineGkdGlobalGroups` 函数
 
