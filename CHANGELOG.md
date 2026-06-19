@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.1.0] - 2026-06-19
+
+### Added
+
+- Copy Current Group
+
 ## [1.0.0] - 2026-03-22
 
 ### Fixed
