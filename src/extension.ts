@@ -9,12 +9,14 @@ import {
   type DocumentSymbolEntry,
 } from "./parser/documentSymbols";
 import { findRulesArrayRanges } from "./parser/rulesRanges";
+import { buildSingleGroupAppText } from "./parser/copyGroup";
 import { appendGkdParam, encodeSelectorToBase64 } from "./url/gkdQuery";
 
 const OPEN_ALL_COMMAND_ID = "gkd-toolkit.openAllSnapshotUrls";
 const OPEN_ALL_WITH_QUERY_COMMAND_ID =
   "gkd-toolkit.openAllSnapshotUrlsWithQuery";
 const COLLAPSE_ALL_RULES_COMMAND_ID = "gkd-toolkit.collapseAllRules";
+const COPY_CURRENT_GROUP_COMMAND_ID = "gkd-toolkit.copyCurrentGroup";
 const REQUIRED_PACKAGES = ["@gkd-kit/api", "@gkd-kit/define", "@gkd-kit/tools"];
 const TARGET_IMPORTS = new Set(["defineGkdGlobalGroups", "defineGkdApp"]);
 
@@ -221,6 +223,30 @@ export function activate(context: vscode.ExtensionContext): void {
     },
   );
 
+  const copyCurrentGroupDisposable = vscode.commands.registerCommand(
+    COPY_CURRENT_GROUP_COMMAND_ID,
+    async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        return;
+      }
+      const doc = editor.document;
+      if (!isTargetDocument(doc) || !hasTargetDefineImport(doc.getText())) {
+        vscode.window.showErrorMessage("当前文件不是 GKD 规则文件");
+        return;
+      }
+      const offset = doc.offsetAt(editor.selection.active);
+      const objectText = buildSingleGroupAppText(doc.getText(), offset);
+      if (objectText === undefined) {
+        vscode.window.showErrorMessage("光标未处于任何规则组内");
+        return;
+      }
+      await vscode.env.clipboard.writeText(objectText);
+      // 成功提示：状态栏消息，3 秒后自动清除
+      vscode.window.setStatusBarMessage("已复制当前规则组", 3000);
+    },
+  );
+
   const codeLensProvider = vscode.languages.registerCodeLensProvider(
     { language: "typescript", scheme: "file" },
     new SnapshotUrlsCodeLensProvider(),
@@ -234,6 +260,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     openAllDisposable,
     openAllWithQueryDisposable,
+    copyCurrentGroupDisposable,
     codeLensProvider,
     symbolProvider,
   );
@@ -408,6 +435,7 @@ export const __test__ = {
   findSnapshotUrlsEntries,
   findDocumentSymbols,
   findRulesArrayRanges,
+  buildSingleGroupAppText,
   isValidHttpUrl,
   appendGkdParam,
   encodeSelectorToBase64,

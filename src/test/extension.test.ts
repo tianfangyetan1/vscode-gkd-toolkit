@@ -480,4 +480,77 @@ export default defineGkdGlobalGroups({
       assert.strictEqual(ranges.length, 1);
     });
   });
+
+  suite("buildSingleGroupAppText", () => {
+    const source = `import { defineGkdApp } from '@gkd-kit/define';
+
+export default defineGkdApp({
+  id: 'com.example.app',
+  groups: [
+    {
+      key: 1,
+      name: '开屏广告',
+      rules: [
+        { key: 0, name: '跳过按钮' },
+      ],
+    },
+    {
+      key: 2,
+      name: '弹窗广告',
+      rules: [
+        { key: 0, name: '关闭按钮' },
+      ],
+    },
+  ],
+});`;
+
+    test("光标在第 2 组内时只保留该组", () => {
+      const offset = source.indexOf("弹窗广告");
+      const result = __test__.buildSingleGroupAppText(source, offset);
+      assert.ok(result);
+      // 保留顶层 id
+      assert.ok(result.includes("id: 'com.example.app'"));
+      // 只含目标组
+      assert.ok(result.includes("弹窗广告"));
+      assert.ok(!result.includes("开屏广告"));
+      // groups 数组只剩 1 个规则组对象
+      const symbols = __test__.findDocumentSymbols(
+        `export default defineGkdApp(${result});`,
+      );
+      assert.strictEqual(symbols.length, 1);
+      assert.strictEqual(symbols[0].name, "弹窗广告");
+    });
+
+    test("光标在 groups 数组外时返回 undefined", () => {
+      const offset = source.indexOf("com.example.app");
+      const result = __test__.buildSingleGroupAppText(source, offset);
+      assert.strictEqual(result, undefined);
+    });
+
+    test("非 defineGkdApp 时返回 undefined", () => {
+      const globalSource = `import { defineGkdGlobalGroups } from '@gkd-kit/define';
+
+export default defineGkdGlobalGroups({
+  groups: [
+    {
+      key: 1,
+      name: '开屏广告',
+      rules: [{ key: 0, name: '跳过' }],
+    },
+  ],
+});`;
+      const offset = globalSource.indexOf("开屏广告");
+      const result = __test__.buildSingleGroupAppText(globalSource, offset);
+      assert.strictEqual(result, undefined);
+    });
+
+    test("无 export default 时返回 undefined", () => {
+      const noExport = `const app = defineGkdApp({ id: 'com.example', groups: [{ key: 1, rules: [{ key: 0 }] }] });`;
+      const result = __test__.buildSingleGroupAppText(
+        noExport,
+        noExport.indexOf("key: 1"),
+      );
+      assert.strictEqual(result, undefined);
+    });
+  });
 });

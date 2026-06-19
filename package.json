@@ -17,15 +17,23 @@
     "commands": [
       {
         "command": "gkd-toolkit.openAllSnapshotUrls",
-        "title": "全部打开"
+        "title": "全部打开",
+        "category": "GKD Toolkit"
       },
       {
         "command": "gkd-toolkit.openAllSnapshotUrlsWithQuery",
-        "title": "全部打开并查询"
+        "title": "全部打开并查询",
+        "category": "GKD Toolkit"
       },
       {
         "command": "gkd-toolkit.collapseAllRules",
-        "title": "折叠所有规则"
+        "title": "折叠所有规则",
+        "category": "GKD Toolkit"
+      },
+      {
+        "command": "gkd-toolkit.copyCurrentGroup",
+        "title": "复制当前规则组",
+        "category": "GKD Toolkit"
       }
     ],
     "configuration": {
