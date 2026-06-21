@@ -1,5 +1,13 @@
 # Change Log
 
+## [1.1.0] - 2026-06-21
+
+### Added
+
+- vscode protocol
+  - open file
+  - apppend groups
+
 ## [1.1.0] - 2026-06-19
 
 ### Added
