@@ -1,5 +1,5 @@
 import type * as ts from "typescript";
-import { getTs, getPropertyName } from "./utils";
+import { getTs, findGroupsArray } from "./utils";
 
 /**
  * 复制「当前规则组」：返回 `defineGkdApp(...)` 参数对象的文本，
@@ -45,7 +45,7 @@ export function buildSingleGroupAppText(
       return undefined;
     }
 
-    const groupsArray = findGroupsArray(_ts, arg);
+    const groupsArray = findGroupsArray(arg);
     if (!groupsArray) {
       return undefined;
     }
@@ -75,28 +75,5 @@ export function buildSingleGroupAppText(
     );
   }
 
-  return undefined;
-}
-
-/**
- * 从对象字面量中找到 `groups` 属性对应的数组字面量。
- *
- * @param _ts TypeScript 模块实例。
- * @param obj 待查找的对象字面量。
- * @returns groups 数组字面量；未找到时返回 undefined。
- */
-function findGroupsArray(
-  _ts: typeof ts,
-  obj: ts.ObjectLiteralExpression,
-): ts.ArrayLiteralExpression | undefined {
-  for (const prop of obj.properties) {
-    if (
-      _ts.isPropertyAssignment(prop) &&
-      getPropertyName(prop) === "groups" &&
-      _ts.isArrayLiteralExpression(prop.initializer)
-    ) {
-      return prop.initializer;
-    }
-  }
   return undefined;
 }

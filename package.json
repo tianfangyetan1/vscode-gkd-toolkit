@@ -10,7 +10,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:typescript"
+    "onLanguage:typescript",
+    "onUri"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -45,8 +46,26 @@
           "default": true,
           "description": "当规则组内只有一条规则时，不在大纲中单独显示规则"
         },
-        "gkd-toolkit.collapseAllRules.show": {
+        "gkd-toolkit.append.confirm": {
           "order": 1,
+          "type": "boolean",
+          "default": true,
+          "description": "通过 vscode:// 协议追加规则组前弹窗确认"
+        },
+        "gkd-toolkit.append.format": {
+          "order": 2,
+          "type": "boolean",
+          "default": true,
+          "description": "通过 vscode:// 协议追加规则组后格式化该文档"
+        },
+        "gkd-toolkit.append.overwriteKey": {
+          "order": 3,
+          "type": "boolean",
+          "default": true,
+          "description": "通过 vscode:// 协议追加规则组时覆写新组的 key。值为追加前最大的 key 值 +1，如果是新建的文件则值为 1。"
+        },
+        "gkd-toolkit.collapseAllRules.show": {
+          "order": 4,
           "type": "boolean",
           "default": false,
           "description": "实验性：在规则文件顶部显示「折叠所有规则」按钮，下次打开时自动展开折叠的部分"

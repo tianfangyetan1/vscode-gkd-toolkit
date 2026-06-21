@@ -248,6 +248,183 @@ export default defineGkdApp({
     });
   });
 
+  suite("decodeBase64FromUrlSafe", () => {
+    function toUrlSafe(text: string): string {
+      return Buffer.from(text, "utf8")
+        .toString("base64")
+        .replaceAll("+", "-")
+        .replaceAll("=", "");
+    }
+
+    test("可还原含中文的字符串（往返）", () => {
+      const text = `{ id: 'com.x', groups: [{ key: 1, name: '开屏广告' }] }`;
+      const decoded = __test__.decodeBase64FromUrlSafe(toUrlSafe(text));
+      assert.strictEqual(decoded, text);
+    });
+
+    test("可还原 base64 含 + 的样本", () => {
+      // 'foo>>>' 的标准 base64 为 'Zm9vPj4+'，含有 '+'，验证 '-'→'+' 还原
+      const text = "foo>>>";
+      const std = Buffer.from(text, "utf8").toString("base64");
+      assert.ok(std.includes("+"), "前置条件：标准 base64 应含 +");
+      const decoded = __test__.decodeBase64FromUrlSafe(toUrlSafe(text));
+      assert.strictEqual(decoded, text);
+    });
+
+    test("长度对 4 取余为 1 时返回 null", () => {
+      assert.strictEqual(__test__.decodeBase64FromUrlSafe("YWJjZGU"), "abcde");
+      assert.strictEqual(__test__.decodeBase64FromUrlSafe("A"), null);
+    });
+  });
+
+  suite("isValidAppId", () => {
+    test("普通包名合法", () => {
+      assert.strictEqual(__test__.isValidAppId("com.tencent.mm"), true);
+    });
+    test("空/路径分隔符/.. 非法", () => {
+      assert.strictEqual(__test__.isValidAppId(null), false);
+      assert.strictEqual(__test__.isValidAppId(""), false);
+      assert.strictEqual(__test__.isValidAppId("a/b"), false);
+      assert.strictEqual(__test__.isValidAppId("a\\b"), false);
+      assert.strictEqual(__test__.isValidAppId("../etc/passwd"), false);
+      assert.strictEqual(__test__.isValidAppId("a..b"), false);
+    });
+  });
+
+  suite("extractAppPayload", () => {
+    test("从复制产物提取 id 与 groupTexts", () => {
+      const payload = `{
+  id: 'com.example.app',
+  groups: [
+    {
+      key: 2,
+      name: '弹窗广告',
+      rules: [{ key: 0, name: '关闭按钮' }],
+    },
+  ],
+}`;
+      const result = __test__.extractAppPayload(payload);
+      assert.ok(result);
+      assert.strictEqual(result.id, "com.example.app");
+      assert.strictEqual(result.groups.length, 1);
+      // 元素文本保留原格式且偏移正确
+      const g = result.groups[0];
+      assert.strictEqual(payload.slice(g.start, g.end), g.text);
+      assert.ok(g.text.includes("弹窗广告"));
+    });
+
+    test("多个 group 时全部提取", () => {
+      const payload = `{ id: 'com.x', groups: [{ key: 1 }, { key: 2 }] }`;
+      const result = __test__.extractAppPayload(payload);
+      assert.ok(result);
+      assert.strictEqual(result.groups.length, 2);
+    });
+
+    test("非对象 / 无 groups 返回 undefined", () => {
+      assert.strictEqual(__test__.extractAppPayload("123"), undefined);
+      assert.strictEqual(
+        __test__.extractAppPayload(`{ id: 'com.x' }`),
+        undefined,
+      );
+    });
+  });
+
+  suite("findGroupsArrayInsertOffset", () => {
+    test("有尾逗号时 needsComma 为 false，offset 指向 ]", () => {
+      const source = `export default defineGkdApp({
+  id: 'com.x',
+  groups: [
+    { key: 1, rules: [] },
+  ],
+});`;
+      const result = __test__.findGroupsArrayInsertOffset(source);
+      assert.ok(result);
+      assert.strictEqual(result.needsComma, false);
+      assert.strictEqual(source.charAt(result.offset), "]");
+    });
+
+    test("无尾逗号时 needsComma 为 true", () => {
+      const source = `export default defineGkdApp({ id: 'com.x', groups: [{ key: 1 }] });`;
+      const result = __test__.findGroupsArrayInsertOffset(source);
+      assert.ok(result);
+      assert.strictEqual(result.needsComma, true);
+      assert.strictEqual(source.charAt(result.offset), "]");
+    });
+
+    test("空数组 needsComma 为 false", () => {
+      const source = `export default defineGkdApp({ id: 'com.x', groups: [] });`;
+      const result = __test__.findGroupsArrayInsertOffset(source);
+      assert.ok(result);
+      assert.strictEqual(result.needsComma, false);
+    });
+
+    test("非 defineGkdApp 返回 undefined", () => {
+      const source = `export default defineGkdGlobalGroups({ groups: [] });`;
+      assert.strictEqual(
+        __test__.findGroupsArrayInsertOffset(source),
+        undefined,
+      );
+    });
+  });
+
+  suite("findMaxGroupKey", () => {
+    test("多组取最大 key", () => {
+      const source = `export default defineGkdApp({
+  id: 'com.x',
+  groups: [{ key: 1 }, { key: 5 }, { key: 3 }],
+});`;
+      assert.strictEqual(__test__.findMaxGroupKey(source), 5);
+    });
+
+    test("无 key 返回 undefined", () => {
+      const source = `export default defineGkdApp({ id: 'com.x', groups: [{ name: 'a' }] });`;
+      assert.strictEqual(__test__.findMaxGroupKey(source), undefined);
+    });
+  });
+
+  suite("setGroupKey", () => {
+    test("替换已有 key 数字", () => {
+      const result = __test__.setGroupKey(`{ key: 1, name: 'x' }`, 7);
+      assert.ok(result.includes("key: 7"));
+      assert.ok(!result.includes("key: 1"));
+      assert.ok(result.includes("name: 'x'"));
+    });
+
+    test("无 key 时新增", () => {
+      const result = __test__.setGroupKey(`{ name: 'x' }`, 3);
+      assert.ok(result.includes("key: 3"));
+      assert.ok(result.includes("name: 'x'"));
+    });
+
+    test("解析失败时原样返回", () => {
+      assert.strictEqual(__test__.setGroupKey("不是对象", 1), "不是对象");
+    });
+  });
+
+  suite("append 集成", () => {
+    test("插入新组后组数 +1 且 key = 原最大 +1", () => {
+      const source = `export default defineGkdApp({
+  id: 'com.x',
+  groups: [
+    { key: 1, name: '已有组' },
+  ],
+});`;
+      const insert = __test__.findGroupsArrayInsertOffset(source);
+      assert.ok(insert);
+      const base = (__test__.findMaxGroupKey(source) ?? 0) + 1;
+      const newGroup = __test__.setGroupKey(`{ key: 99, name: '新组' }`, base);
+      assert.ok(newGroup.includes("key: 2"));
+      const text =
+        source.slice(0, insert.offset) +
+        (insert.needsComma ? "," : "") +
+        newGroup +
+        source.slice(insert.offset);
+      const symbols = __test__.findDocumentSymbols(text);
+      assert.strictEqual(symbols.length, 2);
+      assert.strictEqual(symbols[1].name, "新组");
+    });
+  });
+
   suite("findDocumentSymbols", () => {
     test("解析 defineGkdApp 的 2 层大纲", () => {
       const source = `import { defineGkdApp } from '@gkd-kit/define';

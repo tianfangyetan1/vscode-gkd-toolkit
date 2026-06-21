@@ -83,6 +83,27 @@ export function getStringProperty(
 }
 
 /**
+ * 从对象字面量中找到 `groups` 属性对应的数组字面量。
+ *
+ * @param obj 待查找的对象字面量。
+ * @returns groups 数组字面量；未找到时返回 undefined。
+ */
+export function findGroupsArray(
+  obj: ts.ObjectLiteralExpression,
+): ts.ArrayLiteralExpression | undefined {
+  for (const prop of obj.properties) {
+    if (
+      _ts.isPropertyAssignment(prop) &&
+      getPropertyName(prop) === "groups" &&
+      _ts.isArrayLiteralExpression(prop.initializer)
+    ) {
+      return prop.initializer;
+    }
+  }
+  return undefined;
+}
+
+/**
  * 从对象字面量中获取指定属性的值（支持字符串和数字字面量）。
  *
  * @param obj 对象字面量表达式节点

@@ -10,7 +10,17 @@ import {
 } from "./parser/documentSymbols";
 import { findRulesArrayRanges } from "./parser/rulesRanges";
 import { buildSingleGroupAppText } from "./parser/copyGroup";
-import { appendGkdParam, encodeSelectorToBase64 } from "./url/gkdQuery";
+import {
+  extractAppPayload,
+  findGroupsArrayInsertOffset,
+  findMaxGroupKey,
+  setGroupKey,
+} from "./parser/appendGroup";
+import {
+  appendGkdParam,
+  encodeSelectorToBase64,
+  decodeBase64FromUrlSafe,
+} from "./url/gkdQuery";
 
 const OPEN_ALL_COMMAND_ID = "gkd-toolkit.openAllSnapshotUrls";
 const OPEN_ALL_WITH_QUERY_COMMAND_ID =
@@ -179,15 +189,15 @@ class CollapseAllRulesCodeLensProvider
  * @returns 无返回值。
  */
 export function activate(context: vscode.ExtensionContext): void {
+  // URI handler 始终注册，不受工作区门控影响（多工作区判断在 handleUri 内进行）。
+  context.subscriptions.push(vscode.window.registerUriHandler({ handleUri }));
+
   const workspacePath = findWorkspaceWithRequiredPackages();
   if (!workspacePath) {
     return;
   }
 
-  const ts = __non_webpack_require__(
-    path.join(workspacePath, "node_modules", "typescript"),
-  );
-  setTypeScriptModule(ts);
+  ensureTsLoaded(workspacePath);
 
   const openAllDisposable = vscode.commands.registerCommand(
     OPEN_ALL_COMMAND_ID,
@@ -356,24 +366,216 @@ export function activate(context: vscode.ExtensionContext): void {
  */
 export function deactivate(): void {}
 
+/** TS 单例是否已注入，避免重复加载。 */
+let tsLoaded = false;
+
 /**
- * 查找同时安装了所有必需依赖包的工作区路径。
+ * 确保 TypeScript 单例已从工作区动态加载并注入到 parser 层。
+ *
+ * @param workspacePath 含有 typescript 依赖的工作区路径。
+ */
+function ensureTsLoaded(workspacePath: string): void {
+  if (tsLoaded) {
+    return;
+  }
+  const ts = __non_webpack_require__(
+    path.join(workspacePath, "node_modules", "typescript"),
+  );
+  setTypeScriptModule(ts);
+  tsLoaded = true;
+}
+
+/**
+ * 查找所有同时安装了必需依赖包的工作区路径。
+ *
+ * @returns 所有匹配的工作区文件系统路径列表。
+ */
+function findWorkspacesWithRequiredPackages(): string[] {
+  const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
+  return workspaceFolders
+    .filter((f) =>
+      REQUIRED_PACKAGES.every((pkgName) =>
+        existsSync(
+          path.join(f.uri.fsPath, "node_modules", ...pkgName.split("/")),
+        ),
+      ),
+    )
+    .map((f) => f.uri.fsPath);
+}
+
+/**
+ * 查找同时安装了所有必需依赖包的工作区路径（取第一个匹配）。
  *
  * @returns 找到的工作区文件系统路径；未找到时返回 `undefined`。
  */
 function findWorkspaceWithRequiredPackages(): string | undefined {
-  const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
-  const folder = workspaceFolders.find((f) => {
-    return REQUIRED_PACKAGES.every((pkgName) => {
-      const pkgPath = path.join(
-        f.uri.fsPath,
-        "node_modules",
-        ...pkgName.split("/"),
+  return findWorkspacesWithRequiredPackages()[0];
+}
+
+/**
+ * 校验 app 包名参数：非空、不含路径分隔符、不含 `..`（防目录穿越）。
+ *
+ * @param app 来自 URL 的 app 参数。
+ * @returns 合法时返回 `true`。
+ */
+function isValidAppId(app: string | null): app is string {
+  if (!app) {
+    return false;
+  }
+  if (/[\\/]/.test(app) || app.includes("..")) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * 处理 vscode:// 协议唤起，支持 `/open` 与 `/append`。
+ *
+ * 仅当恰好存在一个 GKD 订阅工作区时才响应。
+ *
+ * @param uri 唤起扩展的 URI。
+ */
+async function handleUri(uri: vscode.Uri): Promise<void> {
+  const matches = findWorkspacesWithRequiredPackages();
+  if (matches.length === 0) {
+    vscode.window.showErrorMessage("未打开 GKD 订阅工作区");
+    return;
+  }
+  if (matches.length > 1) {
+    vscode.window.showErrorMessage("检测到多个 GKD 订阅工作区，无法跳转文件");
+    return;
+  }
+  const workspacePath = matches[0];
+  ensureTsLoaded(workspacePath);
+
+  const params = new URLSearchParams(uri.query);
+  const app = params.get("app");
+  if (!isValidAppId(app)) {
+    vscode.window.showErrorMessage("缺少或非法的 app 参数");
+    return;
+  }
+  const filePath = path.join(workspacePath, "src", "apps", app + ".ts");
+
+  switch (uri.path) {
+    case "/open":
+      await handleOpenUri(filePath);
+      break;
+    case "/append":
+      await handleAppendUri(filePath, params.get("groups"));
+      break;
+    default:
+      vscode.window.showErrorMessage(`不支持的操作：${uri.path}`);
+  }
+}
+
+/**
+ * `/open`：打开指定规则文件，不存在则报错。
+ *
+ * @param filePath 目标文件绝对路径。
+ */
+async function handleOpenUri(filePath: string): Promise<void> {
+  if (!existsSync(filePath)) {
+    vscode.window.showErrorMessage(`规则文件不存在：${filePath}`);
+    return;
+  }
+  await vscode.window.showTextDocument(vscode.Uri.file(filePath));
+}
+
+/**
+ * `/append`：把规则组追加进文件（不存在则新建），按配置确认、覆写 key、格式化。
+ *
+ * @param filePath 目标文件绝对路径。
+ * @param groupsParam URL 中的 groups 参数（url-safe base64）。
+ */
+async function handleAppendUri(
+  filePath: string,
+  groupsParam: string | null,
+): Promise<void> {
+  if (!groupsParam) {
+    vscode.window.showErrorMessage("缺少 groups 参数");
+    return;
+  }
+  const decoded = decodeBase64FromUrlSafe(groupsParam);
+  if (decoded === null) {
+    vscode.window.showErrorMessage("groups 参数解码失败");
+    return;
+  }
+  const payload = extractAppPayload(decoded);
+  if (!payload) {
+    vscode.window.showErrorMessage(
+      "groups 不是合法的 defineGkdApp 参数对象",
+    );
+    return;
+  }
+
+  const config = vscode.workspace.getConfiguration("gkd-toolkit");
+  if (config.get<boolean>("append.confirm", true)) {
+    const choice = await vscode.window.showWarningMessage(
+      `确定向 ${filePath} 添加 ${payload.groups.length} 个规则组吗？`,
+      "确定",
+      "不再询问",
+    );
+    if (choice === undefined) {
+      return; // 取消
+    }
+    if (choice === "不再询问") {
+      await config.update(
+        "append.confirm",
+        false,
+        vscode.ConfigurationTarget.Global,
       );
-      return existsSync(pkgPath);
-    });
-  });
-  return folder?.uri.fsPath;
+    }
+  }
+
+  const overwriteKey = config.get<boolean>("append.overwriteKey", true);
+  const fileUri = vscode.Uri.file(filePath);
+  const edit = new vscode.WorkspaceEdit();
+
+  if (!existsSync(filePath)) {
+    // 新建文件：在 payload 文本内按 1,2,3... 覆写 key（从后往前以保持偏移有效）。
+    let payloadText = decoded;
+    if (overwriteKey) {
+      for (let i = payload.groups.length - 1; i >= 0; i--) {
+        const g = payload.groups[i];
+        payloadText =
+          payloadText.slice(0, g.start) +
+          setGroupKey(g.text, i + 1) +
+          payloadText.slice(g.end);
+      }
+    }
+    const content = `import { defineGkdApp } from "@gkd-kit/define";\n\nexport default defineGkdApp(${payloadText});\n`;
+    edit.createFile(fileUri, { ignoreIfExists: false });
+    edit.insert(fileUri, new vscode.Position(0, 0), content);
+  } else {
+    const doc = await vscode.workspace.openTextDocument(fileUri);
+    const insert = findGroupsArrayInsertOffset(doc.getText());
+    if (!insert) {
+      vscode.window.showErrorMessage(
+        "目标文件不是合法的 GKD App 规则文件",
+      );
+      return;
+    }
+    let groupTexts = payload.groups.map((g) => g.text);
+    if (overwriteKey) {
+      const base = (findMaxGroupKey(doc.getText()) ?? 0) + 1;
+      groupTexts = groupTexts.map((t, i) => setGroupKey(t, base + i));
+    }
+    const insertText = (insert.needsComma ? "," : "") + groupTexts.join(",\n");
+    edit.insert(fileUri, doc.positionAt(insert.offset), insertText);
+  }
+
+  await vscode.workspace.applyEdit(edit);
+
+  const editor = await vscode.window.showTextDocument(fileUri);
+  if (config.get<boolean>("append.format", true)) {
+    await vscode.commands.executeCommand("editor.action.formatDocument");
+  }
+  await editor.document.save();
+
+  vscode.window.setStatusBarMessage(
+    `已追加规则组到 ${path.basename(filePath)}`,
+    3000,
+  );
 }
 
 /**
@@ -439,4 +641,10 @@ export const __test__ = {
   isValidHttpUrl,
   appendGkdParam,
   encodeSelectorToBase64,
+  decodeBase64FromUrlSafe,
+  extractAppPayload,
+  findGroupsArrayInsertOffset,
+  findMaxGroupKey,
+  setGroupKey,
+  isValidAppId,
 };
