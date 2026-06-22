@@ -29,15 +29,15 @@ export function appendGkdParam(url: string, selector: string): string | null {
 /**
  * 解码 url-safe Base64 字符串（与 {@link appendGkdParam} 的编码约定对称）。
  *
- * 编码方将标准 Base64 的 `+` 替换为 `-`、并去掉了 `=` 填充；
- * 此处反向还原：`-`→`+`，按长度补足 `=` 填充，再按 UTF-8 解码。
+ * 编码方将标准 Base64 的 `+` 替换为 `-`、`/` 替换为 `_`、并去掉了 `=` 填充；
+ * 此处反向还原：`-`→`+`、`_`→`/`，按长度补足 `=` 填充，再按 UTF-8 解码。
  *
  * @param value url-safe Base64 字符串。
  * @returns 解码后的 UTF-8 字符串；解码失败时返回 `null`。
  */
 export function decodeBase64FromUrlSafe(value: string): string | null {
   try {
-    let base64 = value.replaceAll("-", "+");
+    let base64 = value.replaceAll("-", "+").replaceAll("_", "/");
     const padding = base64.length % 4;
     if (padding === 1) {
       // 长度对 4 取余为 1 的 Base64 不合法
