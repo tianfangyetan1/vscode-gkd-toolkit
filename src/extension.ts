@@ -461,7 +461,7 @@ async function handleUri(uri: vscode.Uri): Promise<void> {
       await handleOpenUri(filePath);
       break;
     case "/append":
-      await handleAppendUri(filePath, params.get("groups"));
+      await handleAppendUri(filePath, params.get("payload"));
       break;
     default:
       vscode.window.showErrorMessage(`不支持的操作：${uri.path}`);
@@ -485,25 +485,25 @@ async function handleOpenUri(filePath: string): Promise<void> {
  * `/append`：把规则组追加进文件（不存在则新建），按配置确认、覆写 key、格式化。
  *
  * @param filePath 目标文件绝对路径。
- * @param groupsParam URL 中的 groups 参数（url-safe base64）。
+ * @param payloadParam URL 中的 payload 参数（url-safe base64）。
  */
 async function handleAppendUri(
   filePath: string,
-  groupsParam: string | null,
+  payloadParam: string | null,
 ): Promise<void> {
-  if (!groupsParam) {
-    vscode.window.showErrorMessage("缺少 groups 参数");
+  if (!payloadParam) {
+    vscode.window.showErrorMessage("缺少 payload 参数");
     return;
   }
-  const decoded = decodeBase64FromUrlSafe(groupsParam);
+  const decoded = decodeBase64FromUrlSafe(payloadParam);
   if (decoded === null) {
-    vscode.window.showErrorMessage("groups 参数解码失败");
+    vscode.window.showErrorMessage("payload 参数解码失败");
     return;
   }
   const payload = extractAppPayload(decoded);
   if (!payload) {
     vscode.window.showErrorMessage(
-      "groups 不是合法的 defineGkdApp 参数对象",
+      "payload 不是合法的 defineGkdApp 参数对象",
     );
     return;
   }
