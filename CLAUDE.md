@@ -45,7 +45,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `utils.ts` — TS 单例 + AST 取值辅助（`getPropertyName`/`getStringProperty`/`getPropertyValue`/`extractStringValues`/`findGroupsArray`）；`findGroupsArray` 被 `copyGroup` 与 `appendGroup` 共用
 
 **URL 层（`src/url/gkdQuery.ts`）**
-选择器编码为 url-safe base64（`+`→`-`、去掉 `=`），写入 URL 的 `gkd` 查询参数（`appendGkdParam`）。反向解码 `decodeBase64FromUrlSafe`（`-`→`+`、补 `=`）供 `/append` 的 `groups` 参数使用。
+选择器编码为 url-safe base64（`+`→`-`、去掉 `=`），写入 URL 的 `gkd` 查询参数（`appendGkdParam`）。反向解码 `decodeBase64FromUrlSafe`（`-`→`+`、补 `=`）供 `/append` 的 `payload` 参数使用。
 
 **测试导出约定**
 `extension.ts` 末尾导出 `__test__` 对象，把内部函数和各 parser 聚合给测试用。新增需要被测试的内部函数时，加进 `__test__`。

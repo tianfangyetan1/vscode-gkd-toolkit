@@ -20,9 +20,14 @@
 扩展注册了 URI 协议 `vscode://tianfangyetan.gkd-toolkit/`，浏览器可借此打开或追加本地订阅项目的规则文件。
 
 - `/open?app=<包名>` —— 打开规则文件 `src/apps/<包名>.ts`，不存在则报错。
-- `/append?app=<包名>&groups=<RawAppBase64>` —— 把规则组追加进该文件，文件不存在则自动新建。
-  
-  `groups` 是新增规则组 **app 层**（`defineGkdApp(...)` 中的参数）base64 的安全文本（`+` 替换成 `-`，移除 `=`）。
+
+- `/append?app=<包名>&payload=<RawAppBase64>` —— 把规则组追加进该文件，文件不存在则自动新建。
+
+  其中 `payload` 是新增规则组 **app 层**（`defineGkdApp(...)` 中的参数）的 Base64 url 文本，规则如下：
+
+    - `+` 替换成 `-`
+    - `/` 替换成 `_`
+    - 移除 `=`
 
 > [!IMPORTANT]
 > 仅在上一次打开（切换窗口）的工作区是 GKD 订阅项目时才会响应。
@@ -34,10 +39,9 @@
 ## 启用条件
 
 1. 当前工作区项目安装了以下 npm 包
-
-    - `@gkd-kit/api`
-    - `@gkd-kit/define`
-    - `@gkd-kit/tools`
+   - `@gkd-kit/api`
+   - `@gkd-kit/define`
+   - `@gkd-kit/tools`
 
 2. 当前编辑器打开了 `src` 文件夹下的 `.ts` 文件
 

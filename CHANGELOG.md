@@ -1,12 +1,18 @@
 # Change Log
 
+## [1.2.1] - 2026-06-22
+
+### Changed
+
+- Rename `/append` query param `groups` to `payload`
+
 ## [1.2.0] - 2026-06-21
 
 ### Added
 
-- vscode protocol
-  - open file
-  - apppend groups
+- Register vscode protocol
+  - Open file with package name
+  - Apppend groups
 
 ## [1.1.0] - 2026-06-19
 
