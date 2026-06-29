@@ -1,4 +1,5 @@
 import * as assert from "assert";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import * as ts from "typescript";
 import { __test__ } from "../extension";
@@ -655,6 +656,47 @@ export default defineGkdGlobalGroups({
       const ranges = __test__.findRulesArrayRanges(source);
       // 只应匹配 groups 下规则组对象直接的 rules，不应匹配嵌套的 nested.rules
       assert.strictEqual(ranges.length, 1);
+    });
+  });
+
+  suite("findConfiguredWorkspace", () => {
+    const match1 = path.resolve("project", "gkd-a");
+    const match2 = path.resolve("project", "gkd-b");
+    const matches = [match1, match2];
+
+    test("精确路径命中", () => {
+      assert.strictEqual(
+        __test__.findConfiguredWorkspace(matches, match1),
+        match1,
+      );
+      assert.strictEqual(
+        __test__.findConfiguredWorkspace(matches, match2),
+        match2,
+      );
+    });
+
+    test("带尾斜杠仍命中", () => {
+      assert.strictEqual(
+        __test__.findConfiguredWorkspace(matches, match1 + path.sep),
+        match1,
+      );
+    });
+
+    test("Windows 下大小写差异仍命中", function () {
+      if (process.platform !== "win32") {
+        this.skip();
+      }
+      assert.strictEqual(
+        __test__.findConfiguredWorkspace(matches, match1.toUpperCase()),
+        match1,
+      );
+    });
+
+    test("路径不在 matches 中返回 undefined", () => {
+      assert.strictEqual(
+        __test__.findConfiguredWorkspace(matches, path.resolve("project", "gkd-c")),
+        undefined,
+      );
     });
   });
 

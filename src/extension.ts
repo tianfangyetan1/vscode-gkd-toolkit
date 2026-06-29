@@ -413,6 +413,98 @@ function findWorkspaceWithRequiredPackages(): string | undefined {
 }
 
 /**
+ * 将路径归一化以便比较：消除尾斜杠、`.`/`..`、统一分隔符；
+ * Windows 下忽略大小写差异。
+ *
+ * @param p 待归一化的路径。
+ * @returns 归一化后的路径字符串。
+ */
+function normalizePathForCompare(p: string): string {
+  const resolved = path.resolve(p);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
+
+/**
+ * 在匹配的工作区中查找与配置路径相同的项。
+ *
+ * @param matches 已安装必需依赖的工作区绝对路径列表。
+ * @param configured 配置中的项目根目录绝对路径。
+ * @returns 命中的原始 `matches` 项；未命中时返回 `undefined`。
+ */
+function findConfiguredWorkspace(
+  matches: string[],
+  configured: string,
+): string | undefined {
+  const target = normalizePathForCompare(configured);
+  return matches.find((m) => normalizePathForCompare(m) === target);
+}
+
+/**
+ * 弹出快速选择，让用户在多个 GKD 工作区中选择一个。
+ * 选择前即说明选定结果会写入当前工作区配置。
+ *
+ * @param matches 候选的工作区绝对路径列表。
+ * @returns 用户选定的绝对路径；取消时返回 `undefined`。
+ */
+async function pickWorkspace(matches: string[]): Promise<string | undefined> {
+  const picked = await vscode.window.showQuickPick(
+    matches.map((p) => ({ label: path.basename(p), description: p })),
+    {
+      placeHolder:
+        "选择默认 GKD 订阅项目（选择后写入当前工作区配置，后续不再询问）",
+    },
+  );
+  return picked?.description;
+}
+
+/**
+ * 解析本次 URI 跳转应使用的目标工作区。
+ *
+ * - 0 个匹配：报错并返回 `undefined`。
+ * - 1 个匹配：直接返回该工作区（忽略配置）。
+ * - 多个匹配：按 `gkd-toolkit.uri.workspacePath` 选定；未配置则弹出快速选择并写入工作区配置；
+ *   已配置但不匹配任何工作区时报错。
+ *
+ * @param matches 已安装必需依赖的工作区绝对路径列表。
+ * @returns 目标工作区绝对路径；无法确定或用户取消时返回 `undefined`。
+ */
+async function resolveTargetWorkspace(
+  matches: string[],
+): Promise<string | undefined> {
+  if (matches.length === 0) {
+    vscode.window.showErrorMessage("未打开 GKD 订阅工作区");
+    return undefined;
+  }
+  if (matches.length === 1) {
+    return matches[0];
+  }
+
+  const config = vscode.workspace.getConfiguration("gkd-toolkit");
+  const configured = config.get<string>("uri.workspacePath", "").trim();
+  if (configured) {
+    const matched = findConfiguredWorkspace(matches, configured);
+    if (matched) {
+      return matched;
+    }
+    vscode.window.showErrorMessage(
+      `配置的 GKD 项目路径不在已打开的 GKD 订阅工作区中：${configured}`,
+    );
+    return undefined;
+  }
+
+  const picked = await pickWorkspace(matches);
+  if (!picked) {
+    return undefined; // 用户取消
+  }
+  await config.update(
+    "uri.workspacePath",
+    picked,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  return picked;
+}
+
+/**
  * 校验 app 包名参数：非空、不含路径分隔符、不含 `..`（防目录穿越）。
  *
  * @param app 来自 URL 的 app 参数。
@@ -437,15 +529,10 @@ function isValidAppId(app: string | null): app is string {
  */
 async function handleUri(uri: vscode.Uri): Promise<void> {
   const matches = findWorkspacesWithRequiredPackages();
-  if (matches.length === 0) {
-    vscode.window.showErrorMessage("未打开 GKD 订阅工作区");
-    return;
+  const workspacePath = await resolveTargetWorkspace(matches);
+  if (!workspacePath) {
+    return; // 错误信息已在内部给出，或用户取消了选择
   }
-  if (matches.length > 1) {
-    vscode.window.showErrorMessage("检测到多个 GKD 订阅工作区，无法跳转文件");
-    return;
-  }
-  const workspacePath = matches[0];
   ensureTsLoaded(workspacePath);
 
   const params = new URLSearchParams(uri.query);
@@ -647,4 +734,6 @@ export const __test__ = {
   findMaxGroupKey,
   setGroupKey,
   isValidAppId,
+  findConfiguredWorkspace,
+  normalizePathForCompare,
 };

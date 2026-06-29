@@ -29,7 +29,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 3. 文件 import 了 `defineGkdApp` 或 `defineGkdGlobalGroups`（`hasTargetDefineImport`，能处理 `type`/`as` 别名）
 
 **URI handler（`vscode://` 协议，`handleUri`）**
-`registerUriHandler` 在 `activate()` **最顶部、工作区早退之前**就注册，因此即便没有合格工作区、扩展也能被 `onUri` 唤起并给出错误提示。它独立于上面的三重门控，自己的门控是：必须**恰好一个**工作区装有 3 个依赖（`findWorkspacesWithRequiredPackages` 返回全部匹配，0 个或 >1 个都报错）。TS 单例由 `ensureTsLoaded()` 懒加载（与普通激活路径共用、只加载一次）。包名参数经 `isValidAppId` 校验（拒绝 `/`、`\`、`..` 防目录穿越）。`/append` 行为受三个 `gkd-toolkit.append.*` 配置控制（confirm / format / overwriteKey）。
+`registerUriHandler` 在 `activate()` **最顶部、工作区早退之前**就注册，因此即便没有合格工作区、扩展也能被 `onUri` 唤起并给出错误提示。它独立于上面的三重门控，目标工作区由 `resolveTargetWorkspace` 决定（`findWorkspacesWithRequiredPackages` 返回全部装有 3 个依赖的工作区）：0 个报错；恰好 1 个直接使用（忽略配置）；>1 个时按 `gkd-toolkit.uri.workspacePath`（项目根目录绝对路径，`findConfiguredWorkspace` 归一化后比较）选定，未配置则弹 QuickPick 选择并写入**工作区**配置（弹窗前已说明），已配置但不匹配任何工作区则报错。TS 单例由 `ensureTsLoaded()` 懒加载（与普通激活路径共用、只加载一次）。包名参数经 `isValidAppId` 校验（拒绝 `/`、`\`、`..` 防目录穿越）。`/append` 行为受三个 `gkd-toolkit.append.*` 配置控制（confirm / format / overwriteKey）。
 
 **TypeScript 模块的动态加载（关键陷阱）**
 扩展不打包 `typescript`。激活时用 `__non_webpack_require__` 从**工作区的** `node_modules/typescript` 加载 TS 模块，并通过 `setTypeScriptModule()`（`src/parser/utils.ts`）注入到一个模块级单例。所有 parser 通过 `getTs()` 取用这个实例。
