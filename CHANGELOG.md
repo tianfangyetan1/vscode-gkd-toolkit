@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.2.2] - 2026-06-29
+
+### Added
+
+- Add a default project configuration when multiple GKD projects exist in the workspace
+
 ## [1.2.1] - 2026-06-22
 
 ### Changed
