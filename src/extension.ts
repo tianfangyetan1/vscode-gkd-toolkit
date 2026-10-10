@@ -17,8 +17,7 @@ import {
   setGroupKey,
 } from "./parser/appendGroup";
 import {
-  appendGkdParam,
-  encodeSelectorToBase64,
+  appendSnapshotStateParam,
   decodeBase64FromUrlSafe,
 } from "./url/gkdQuery";
 
@@ -215,16 +214,34 @@ export function activate(context: vscode.ExtensionContext): void {
   const openAllWithQueryDisposable = vscode.commands.registerCommand(
     OPEN_ALL_WITH_QUERY_COMMAND_ID,
     async (urls: unknown, selector: unknown) => {
-      if (typeof selector !== "string") {
+      const selectors = (Array.isArray(selector) ? selector : [selector]).filter(
+        (value): value is string =>
+          typeof value === "string" && value.trim().length > 0,
+      );
+      const uniqueSelectors = [...new Set(selectors)];
+
+      if (uniqueSelectors.length === 0) {
         return;
       }
+      if (uniqueSelectors.length > 20) {
+        vscode.window.showErrorMessage("新版快照查询最多支持 20 条选择器");
+        return;
+      }
+
       const list = Array.isArray(urls) ? urls : [];
       const validUrls = list.filter(
         (url): url is string => typeof url === "string" && isValidHttpUrl(url),
       );
       const queryUrls = validUrls
-        .map((url) => appendGkdParam(url, selector))
+        .map((url) => appendSnapshotStateParam(url, uniqueSelectors))
         .filter((url): url is string => typeof url === "string");
+
+      if (queryUrls.length < validUrls.length) {
+        vscode.window.showWarningMessage(
+          "部分快照链接无法生成查询状态，可能是选择器或 URL 状态超出长度限制。",
+        );
+      }
+
       await Promise.all(
         queryUrls.map((url) =>
           vscode.env.openExternal(vscode.Uri.parse(url, true)),
@@ -726,8 +743,7 @@ export const __test__ = {
   findRulesArrayRanges,
   buildSingleGroupAppText,
   isValidHttpUrl,
-  appendGkdParam,
-  encodeSelectorToBase64,
+  appendSnapshotStateParam,
   decodeBase64FromUrlSafe,
   extractAppPayload,
   findGroupsArrayInsertOffset,

@@ -9,7 +9,7 @@ import {
 export type SnapshotUrlsEntry = {
   propertyIndex: number;
   urls: string[];
-  selector?: string;
+  selector?: string | string[];
 };
 
 /**
@@ -51,20 +51,56 @@ export function findSnapshotUrlsEntries(
 }
 
 /**
- * 在父对象中查找 rules 或 matches 字符串属性作为选择器。
- * 优先返回 rules，其次 matches。
+ * 在父对象中查找 matches、anyMatches 或 rules 属性作为选择器。
+ * 单个选择器保持字符串形式，多个选择器以数组返回。
  */
 function findSelectorInParentObject(
   _ts: typeof ts,
   property: ts.PropertyAssignment,
-): string | undefined {
+): string | string[] | undefined {
   const parent = property.parent;
   if (!_ts.isObjectLiteralExpression(parent)) {
     return undefined;
   }
-  return (
-    getStringProperty(parent, "rules") ?? getStringProperty(parent, "matches")
-  );
+
+  const rules = getStringProperty(parent, "rules");
+  if (rules !== undefined) {
+    return rules;
+  }
+
+  const getSelectors = (name: string): string[] | undefined => {
+    const candidate = parent.properties.find(
+      (item) =>
+        _ts.isPropertyAssignment(item) && getPropertyName(item) === name,
+    );
+    if (!candidate || !_ts.isPropertyAssignment(candidate)) {
+      return undefined;
+    }
+
+    const { initializer } = candidate;
+    if (
+      _ts.isStringLiteral(initializer) ||
+      _ts.isNoSubstitutionTemplateLiteral(initializer)
+    ) {
+      return [initializer.text];
+    }
+    if (_ts.isArrayLiteralExpression(initializer)) {
+      return extractStringValues(initializer);
+    }
+    return undefined;
+  };
+
+  // matches 和 anyMatches 都可能是单个字符串或字符串数组。
+  for (const name of ["matches", "anyMatches"]) {
+    const selectors = getSelectors(name)?.filter(
+      (selector) => selector.trim().length > 0,
+    );
+    if (selectors?.length) {
+      return selectors.length === 1 ? selectors[0] : selectors;
+    }
+  }
+
+  return undefined;
 }
 
 /**

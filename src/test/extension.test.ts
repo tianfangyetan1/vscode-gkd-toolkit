@@ -196,59 +196,6 @@ export default defineGkdApp({
     });
   });
 
-  suite("gkd query helpers", () => {
-    function toUrlSafeBase64(selector: string): string {
-      return Buffer.from(selector, "utf8")
-        .toString("base64")
-        .replaceAll("+", "-")
-        .replaceAll("=", "");
-    }
-
-    test("encodeSelectorToBase64 按 UTF-8 编码", () => {
-      const encoded = __test__.encodeSelectorToBase64('@TextView[text="关闭"]');
-      assert.strictEqual(
-        encoded,
-        Buffer.from('@TextView[text="关闭"]', "utf8").toString("base64"),
-      );
-    });
-
-    test("appendGkdParam 追加 gkd 参数", () => {
-      const selector = '@TextView[text="关闭"]';
-      const result = __test__.appendGkdParam(
-        "https://i.gkd.li/i/25821346",
-        selector,
-      );
-      assert.ok(result);
-      const parsed = new URL(result ?? "");
-      assert.strictEqual(
-        parsed.searchParams.get("gkd"),
-        toUrlSafeBase64(selector),
-      );
-    });
-
-    test("appendGkdParam 可覆盖已有 gkd 并保留其他参数", () => {
-      const selector = '@TextView[text="跳过"]';
-      const result = __test__.appendGkdParam(
-        "https://i.gkd.li/i/25821346?a=1&gkd=old",
-        selector,
-      );
-      assert.ok(result);
-      const parsed = new URL(result ?? "");
-      assert.strictEqual(parsed.searchParams.get("a"), "1");
-      assert.strictEqual(
-        parsed.searchParams.get("gkd"),
-        toUrlSafeBase64(selector),
-      );
-    });
-
-    test("appendGkdParam 遇到非法 URL 返回 null", () => {
-      assert.strictEqual(
-        __test__.appendGkdParam("not-a-url", "@TextView"),
-        null,
-      );
-    });
-  });
-
   suite("decodeBase64FromUrlSafe", () => {
     function toUrlSafe(text: string): string {
       return Buffer.from(text, "utf8")
